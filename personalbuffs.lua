@@ -24,7 +24,7 @@
 ----------------------------------------------------------------------
 addon.name    = 'personalbuffs'
 addon.author  = 'Renavi'
-addon.version = '1.1.1'
+addon.version = '1.1.3'
 addon.desc    = 'Shows time left on buffs you give to yourself and others.'
 addon.link    = 'https://github.com/RenaviOnEden/personalbuffs'
 
@@ -44,6 +44,7 @@ local defaults = T{
     theme        = 'Default', -- color theme (see THEMES)
     customThemes = T{},     -- your saved looks: { name, base theme, style, opacity }
     recastLabels = true,    -- "Abilities" / "Spells" labels in the recast box
+    hideFullLog  = true,    -- hide the boxes while the full chat log is open
     style        = T{},     -- your own style tweaks on top of the theme (see THEMES)
     opacity      = 0,       -- background opacity in % (10-100); 0 = use the theme's own
     durations    = T{},     -- [buff|gear] = real full time read from your own buff
@@ -280,6 +281,52 @@ local THEMES = {
       BORDER = { 0.55, 0.65, 0.35, 0.90 }, BTN = { 0.14, 0.26, 0.14, 0.90 },
       BTN_SEL = { 0.25, 0.42, 0.22, 0.95 }, ACCENT = { 0.70, 0.90, 0.45, 1.0 },
       style = { header = true, bars = true, barH = 4, spacing = 'roomy', rounding = 12 } },
+
+    -- Expansions (75 era)
+    { name = "Vana'diel", desc = 'Original game: parchment brown and gold, double border.',
+      NAME = { 0.96, 0.92, 0.82, 1.0 }, GREEN = { 0.62, 0.82, 0.50, 1.0 },
+      YELLOW = { 0.96, 0.82, 0.42, 1.0 }, RED = { 0.90, 0.45, 0.38, 1.0 },
+      TARGET = { 0.92, 0.80, 0.58, 1.0 }, BG = { 0.18, 0.12, 0.07, 0.85 },
+      BORDER = { 0.80, 0.66, 0.38, 0.90 }, BTN = { 0.30, 0.20, 0.11, 0.90 },
+      BTN_SEL = { 0.48, 0.34, 0.16, 0.95 }, ACCENT = { 0.92, 0.76, 0.40, 1.0 },
+      style = { border = 'double', header = true, rounding = 4 } },
+    { name = 'Zilart', desc = 'Rise of the Zilart: sky blue and pale gold, glassy.',
+      NAME = { 0.94, 0.98, 1.00, 1.0 }, GREEN = { 0.55, 0.92, 0.80, 1.0 },
+      YELLOW = { 0.98, 0.90, 0.60, 1.0 }, RED = { 0.98, 0.55, 0.58, 1.0 },
+      TARGET = { 0.65, 0.90, 1.00, 1.0 }, BG = { 0.05, 0.16, 0.28, 0.70 },
+      BORDER = { 0.85, 0.85, 0.65, 0.60 }, BTN = { 0.08, 0.24, 0.38, 0.80 },
+      BTN_SEL = { 0.15, 0.40, 0.55, 0.90 }, ACCENT = { 0.98, 0.92, 0.65, 1.0 },
+      style = { header = true, stripe = 3, rounding = 10 } },
+    { name = 'Promathia', desc = 'Chains of Promathia: black and blood red, square, thick border.',
+      NAME = { 0.85, 0.83, 0.85, 1.0 }, GREEN = { 0.50, 0.75, 0.55, 1.0 },
+      YELLOW = { 0.85, 0.72, 0.40, 1.0 }, RED = { 0.90, 0.30, 0.30, 1.0 },
+      TARGET = { 0.72, 0.66, 0.78, 1.0 }, BG = { 0.04, 0.02, 0.04, 0.92 },
+      BORDER = { 0.50, 0.10, 0.12, 0.95 }, BTN = { 0.14, 0.06, 0.08, 0.95 },
+      BTN_SEL = { 0.38, 0.08, 0.10, 0.95 }, ACCENT = { 0.80, 0.18, 0.20, 1.0 },
+      style = { border = 'thick', dividers = true, rounding = 0, spacing = 'compact' } },
+    { name = 'Aht Urhgan', desc = 'Treasures of Aht Urhgan: deep indigo and desert gold.',
+      NAME = { 0.98, 0.94, 0.84, 1.0 }, GREEN = { 0.55, 0.88, 0.70, 1.0 },
+      YELLOW = { 1.00, 0.84, 0.40, 1.0 }, RED = { 0.98, 0.50, 0.40, 1.0 },
+      TARGET = { 0.45, 0.85, 0.85, 1.0 }, BG = { 0.08, 0.07, 0.22, 0.88 },
+      BORDER = { 0.85, 0.68, 0.30, 0.90 }, BTN = { 0.16, 0.13, 0.36, 0.90 },
+      BTN_SEL = { 0.45, 0.34, 0.12, 0.95 }, ACCENT = { 1.00, 0.78, 0.30, 1.0 },
+      style = { header = true, stripe = 4, rounding = 6 } },
+    { name = 'Goddess', desc = 'Wings of the Goddess: faded sepia with soft rose, very round.',
+      NAME = { 0.96, 0.92, 0.88, 1.0 }, GREEN = { 0.66, 0.85, 0.62, 1.0 },
+      YELLOW = { 0.95, 0.84, 0.55, 1.0 }, RED = { 0.95, 0.55, 0.55, 1.0 },
+      TARGET = { 0.95, 0.78, 0.84, 1.0 }, BG = { 0.20, 0.16, 0.13, 0.80 },
+      BORDER = { 0.92, 0.80, 0.82, 0.55 }, BTN = { 0.32, 0.25, 0.22, 0.85 },
+      BTN_SEL = { 0.55, 0.38, 0.42, 0.90 }, ACCENT = { 0.98, 0.76, 0.84, 1.0 },
+      style = { header = true, rounding = 12, spacing = 'roomy' } },
+
+    -- FFXIV-style: dark charcoal glass, gold highlights, thin light border.
+    { name = 'FFXIV', desc = 'Dark charcoal with gold highlights, like the FFXIV UI.',
+      NAME = { 0.95, 0.94, 0.90, 1.0 }, GREEN = { 0.55, 0.85, 0.45, 1.0 },
+      YELLOW = { 0.93, 0.80, 0.50, 1.0 }, RED = { 0.92, 0.42, 0.40, 1.0 },
+      TARGET = { 0.60, 0.85, 0.95, 1.0 }, BG = { 0.11, 0.11, 0.12, 0.82 },
+      BORDER = { 0.78, 0.74, 0.64, 0.55 }, BTN = { 0.22, 0.21, 0.20, 0.90 },
+      BTN_SEL = { 0.50, 0.40, 0.20, 0.95 }, ACCENT = { 0.85, 0.70, 0.42, 1.0 },
+      style = { header = true, rounding = 5, border = 'thin' } },
 }
 
 local THEME_COLS = { NAME = COL_NAME, GREEN = COL_GREEN, YELLOW = COL_YELLOW, RED = COL_RED,
@@ -466,6 +513,33 @@ local function width_pop() if has('PushItemWidth') and has('PopItemWidth') then 
 local moveBox = { buff = false, recast = false }
 
 local KEEP_AFTER = 5    -- seconds to keep a buff at 0:00
+local SONG_MAX   = 600  -- seconds; no song lasts longer than this (longer reads are the wrong buff)
+
+-- /pb debug: chat lines when a buff starts and when it leaves the list.
+local debugMode = false
+local function dlog(text)
+    if debugMode then print(chat.header(addon.name):append(chat.message('[debug] ' .. text))) end
+end
+local function mmss(sec)
+    sec = math.max(0, math.floor(sec + 0.5))
+    if sec >= 3600 then
+        return string.format('%d:%02d:%02d', math.floor(sec / 3600), math.floor(sec / 60) % 60, sec % 60)
+    end
+    return string.format('%d:%02d', math.floor(sec / 60), sec % 60)
+end
+local SRC_TEXT = { read = 'read from your buffs', saved = 'saved time', estimate = 'estimate ~' }
+
+-- Your own name shows as "You" (like test mode). Names are still used inside
+-- to keep track of who has what; this only changes what you see.
+local myName = nil
+local function update_my_name()
+    local ok, n = pcall(function () return AshitaCore:GetMemoryManager():GetParty():GetMemberName(0) end)
+    if ok and n ~= nil and n ~= '' then myName = n end
+end
+local function show_who(who)
+    if who ~= nil and who == myName then return 'You' end
+    return who
+end
 
 -- Display order of the groups.
 local GROUPS = T{ 'Songs', 'Rolls', 'White Magic', 'Black Magic', 'Ninjutsu',
@@ -608,19 +682,47 @@ local function read_self_buff(buffId)
     if buffId == nil or buffId <= 0 then return nil end
     local player = AshitaCore:GetMemoryManager():GetPlayer()
     if player == nil then return nil end
-    local buffs = player:GetBuffs()
-    local raws  = player:GetStatusTimers()
+    -- The icon list is in the same order as the timer list. (GetBuffs can be
+    -- in a different order, which paired buffs with the wrong timer, e.g.
+    -- Blade Madrigal with your food.) GetBuffs is only a fallback.
+    local okIcons, buffs = pcall(function () return player:GetStatusIcons() end)
+    if not okIcons or buffs == nil then buffs = player:GetBuffs() end
+    local raws = player:GetStatusTimers()
     if buffs == nil or raws == nil then return nil end
 
     local match = BUFF_ICONS[buffId] or { [buffId] = true }
-    local best = nil
+    local best, bestId = nil, nil
     for i, id in pairs(buffs) do
         if match[id] then
             local s = seconds_left(raws[i])
-            if s ~= nil and (best == nil or s > best) then best = s end
+            if s ~= nil and (best == nil or s > best) then best, bestId = s, id end
         end
     end
-    return best
+    return best, bestId
+end
+
+----------------------------------------------------------------------
+-- Open game menu (same memory read HXUI uses). The full chat log
+-- shows up as a menu named "fulllog".
+----------------------------------------------------------------------
+local pGameMenu = ashita.memory.find('FFXiMain.dll', 0, '8B480C85C974??8B510885D274??3B05', 16, 0)
+
+local function menu_name()
+    if pGameMenu == nil or pGameMenu == 0 then return '' end
+    local ok, name = pcall(function ()
+        local sub = ashita.memory.read_uint32(pGameMenu)
+        if sub == nil or sub == 0 then return '' end
+        local val = ashita.memory.read_uint32(sub)
+        if val == nil or val == 0 then return '' end
+        local head = ashita.memory.read_uint32(val + 4)
+        if head == nil or head == 0 then return '' end
+        return (ashita.memory.read_string(head + 0x46, 16):gsub('%z', ''))
+    end)
+    return (ok and name) or ''
+end
+
+local function full_log_open()
+    return menu_name():find('fulllog', 1, true) ~= nil
 end
 
 ----------------------------------------------------------------------
@@ -840,6 +942,11 @@ local function add_pending(p)
         p.sig, p.ruleAdd, p.bonus = gear_info(p.name, p.kind)
     end
     p.t = os.time()
+    -- A newer cast of the same buff by the same caster takes over; the older
+    -- one stops re-reading so it can't overwrite the newer time.
+    for _, old in ipairs(pending) do
+        if old.name == p.name and old.caster == p.caster then old.superseded = true end
+    end
     pending:append(p)
 end
 
@@ -852,6 +959,43 @@ local function in_party(serverId)
         end
     end
     return false
+end
+
+-- Buffs a party member can only put on themselves. Those aren't buffs they
+-- give out, so party tracking skips them when they land only on the caster.
+-- (Party-wide ones like Protectra or Warcry still show when they hit others.)
+--
+-- Spells, by spell ID:
+local SELF_ONLY_SPELLS = {
+    [53]  = true, -- Blink
+    [54]  = true, -- Stoneskin
+    [55]  = true, -- Aquaveil
+    [97]  = true, -- Reprisal
+    [100] = true, [101] = true, [102] = true, [103] = true, [104] = true, [105] = true, -- Enfire .. Enwater
+    [312] = true, [313] = true, [314] = true, [315] = true, [316] = true, [317] = true, -- Enfire II .. Enwater II
+    [310] = true, -- Enlight
+    [106] = true, -- Phalanx (Phalanx II can target others, so it's not here)
+    [135] = true, [141] = true, [142] = true, -- Reraise, II, III
+    [249] = true, [250] = true, [251] = true, -- Blaze / Ice / Shock Spikes
+    [277] = true, -- Dread Spikes
+    [287] = true, -- Klimaform
+}
+-- Whole magic skills that only ever buff the caster:
+-- Dark magic (Dread Spikes, Absorbs), Ninjutsu (Utsusemi, Tonko, Monomi...),
+-- Blue magic (Cocoon, Metallic Body, Refueling...).
+local SELF_ONLY_SKILLS = { [37] = true, [39] = true, [43] = true }
+
+-- True when a party member's spell / ability should be skipped: it landed
+-- only on them, and it's on the lists above. Job abilities that buff others
+-- always hit them too (Warcry, circles...), so any job ability that landed
+-- only on the caster counts as self-only.
+local function self_only(kind, id, res, hit, casterName)
+    for _, who in ipairs(hit) do
+        if who ~= casterName then return false end
+    end
+    if kind == 'ability' then return true end
+    if SELF_ONLY_SPELLS[id] then return true end
+    return res ~= nil and SELF_ONLY_SKILLS[res.Skill] == true
 end
 
 local function handle_action(e)
@@ -926,6 +1070,7 @@ local function handle_action(e)
         if spell == nil or is_trust(param, spell) then return end
         local hit, onSelf, effect = gather(SPELL_MSGS)
         if #hit == 0 or effect == nil or effect == 0 then return end
+        if caster ~= nil and self_only('spell', param, spell, hit, caster) then return end
 
         local group = spell_group(spell)
         add_pending({
@@ -1022,6 +1167,7 @@ local function handle_action(e)
         if not is_status(effect2) then return end
     end
     if #hit2 == 0 or effect2 == nil or effect2 == 0 then return end
+    if caster ~= nil and self_only('ability', param, ability, hit2, caster) then return end
     add_pending({
         name    = name,
         group   = 'Abilities',
@@ -1046,21 +1192,21 @@ local function estimate(p)
     -- Your saved real times include your gear, so they're only used for you.
     if p.caster == nil then
         local saved = config.durations[p.name .. '|' .. p.sig]
-        if saved ~= nil then return saved, false end
+        if saved ~= nil and not (p.kind == 'song' and saved > SONG_MAX) then return saved, false, 'saved' end
     end
     if p.kind == 'song' then
-        return math.floor(120 * (1 + 0.1 * (p.bonus or 0))) + p.ruleAdd, true
+        return math.floor(120 * (1 + 0.1 * (p.bonus or 0))) + p.ruleAdd, true, 'estimate'
     end
     if p.kind == 'roll' then
-        return 300, true
+        return 300, true, 'estimate'
     end
     if p.spellId ~= nil and BASE[p.spellId] ~= nil then
-        return BASE[p.spellId] + p.ruleAdd, true
+        return BASE[p.spellId] + p.ruleAdd, true, 'estimate'
     end
-    return config.fallback + p.ruleAdd, true
+    return config.fallback + p.ruleAdd, true, 'estimate'
 end
 
-local function apply(p, expires, est)
+local function apply(p, expires, est, src)
     local store = (p.caster == nil) and timers or party_store(p.caster)
     local row = store[p.name]
     if row == nil then
@@ -1082,13 +1228,16 @@ local function apply(p, expires, est)
             for _, st in ipairs(stores) do
                 for n, other in pairs(st) do
                     if (st ~= store or n ~= p.name) and other.kind ~= 'song' and other.effect == p.effect then
+                        if other.people[who] ~= nil then
+                            dlog(n .. ' on ' .. show_who(who) .. ': replaced by ' .. p.name)
+                        end
                         other.people[who] = nil
                     end
                 end
             end
         end
         -- dur = full time, so a timer bar knows how much is left.
-        row.people[who] = { exp = expires, est = est, dur = math.max(1, expires - p.t) }
+        row.people[who] = { exp = expires, est = est, src = src, dur = math.max(1, expires - p.t) }
     end
 
     if p.caster == nil then
@@ -1102,44 +1251,79 @@ local function apply(p, expires, est)
     end
 end
 
+-- Your own buff timer is read for a few seconds after a buff lands, and the
+-- longest time seen wins. Right after a recast (songs especially) your buff
+-- list can still show the OLD copy for a moment; reading only once could pick
+-- up that shorter time and drop the buff early.
+local READ_WINDOW = 4
+
+local function who_text(p)
+    local names = {}
+    for i, w in ipairs(p.targets) do names[i] = show_who(w) end
+    return table.concat(names, ', ') .. ' (by ' .. (p.caster or 'you') .. ')'
+end
+
 local function process_pending(now)
     for i = #pending, 1, -1 do
-        local p = pending[i]
+        local p   = pending[i]
+        local age = now - p.t
+        local done = false
 
         if p.caster ~= nil and not config.party.enabled then
             -- Party tracking was switched off while this was waiting.
-            table.remove(pending, i)
-        else
-            local expires = nil
-            local est     = false
-
-            if p.onSelf and now - p.t >= 1 then
-                local left = read_self_buff(p.effect)
-                if left ~= nil then
-                    expires = now + left
-                    local full = left + (now - p.t)
-                    local key  = p.name .. '|' .. p.sig
-                    -- Only save when it really changed (it varies by a second
-                    -- from cast to cast, which isn't worth a file write).
-                    local old = config.durations[key]
-                    if p.caster == nil and (old == nil or math.abs(old - full) > 2) then
-                        config.durations[key] = full
-                        settings.save()
+            done = true
+        elseif p.superseded and (p.bestFull ~= nil or not p.onSelf) then
+            -- A newer cast of the same buff took over.
+            done = true
+        elseif p.onSelf then
+            if age >= 1 and not p.superseded then
+                local left, gotId = read_self_buff(p.effect)
+                local full = left and (left + age) or nil
+                -- Safety net: a song never lasts anywhere near 10 minutes, so a
+                -- longer read is the wrong buff; ignore it.
+                if full ~= nil and p.kind == 'song' and full > SONG_MAX then
+                    if not p.warned then
+                        dlog(p.name .. ': ignored a read of ' .. mmss(full) .. ' (buff ' .. tostring(gotId)
+                             .. ', too long for a song)')
+                        p.warned = true
+                    end
+                    full = nil
+                end
+                if full ~= nil then
+                    p.readId = gotId
+                    if p.bestFull == nil or full > p.bestFull + 1 then
+                        p.bestFull = full
+                        apply(p, p.t + full, false, 'read')
                     end
                 end
             end
-
-            if expires == nil and (not p.onSelf or now - p.t >= 4) then
-                local d
-                d, est = estimate(p)
-                expires = p.t + d
+            if age >= READ_WINDOW or (p.superseded and p.bestFull == nil) then
+                if p.bestFull ~= nil then
+                    -- Save the real full time (only when it really changed).
+                    local key = p.name .. '|' .. p.sig
+                    local old = config.durations[key]
+                    if p.caster == nil and (old == nil or math.abs(old - p.bestFull) > 2) then
+                        config.durations[key] = p.bestFull
+                        settings.save()
+                    end
+                    dlog(p.name .. ' on ' .. who_text(p) .. ': ' .. mmss(p.bestFull) .. ', ' .. SRC_TEXT.read
+                         .. ' (effect ' .. tostring(p.effect) .. ', matched buff ' .. tostring(p.readId) .. ')')
+                elseif not p.superseded then
+                    local d, est, src = estimate(p)
+                    apply(p, p.t + d, est, src)
+                    dlog(p.name .. ' on ' .. who_text(p) .. ': ' .. mmss(d) .. ', ' .. SRC_TEXT[src]
+                         .. ' (could not read it from your buffs)')
+                end
+                done = true
             end
-
-            if expires ~= nil then
-                apply(p, expires, est)
-                table.remove(pending, i)
-            end
+        else
+            local d, est, src = estimate(p)
+            apply(p, p.t + d, est, src)
+            dlog(p.name .. ' on ' .. who_text(p) .. ': ' .. mmss(d) .. ', ' .. SRC_TEXT[src])
+            done = true
         end
+
+        if done then table.remove(pending, i) end
     end
 end
 
@@ -1181,7 +1365,7 @@ local function column_width(rows)
         if n > w then w = n end
         -- Dropdown lines are indented, so they get one less character.
         for _, e in ipairs(t.entries or {}) do
-            local m = #e.who + 1
+            local m = #show_who(e.who) + 1
             if e.caster ~= nil then m = m + 3 + math.min(#e.caster, MIN_CASTER) end
             if m > w then w = m end
         end
@@ -1191,9 +1375,10 @@ end
 
 -- Dropdown line for one person: "Aria" (your cast) or "Aria (Caster)".
 local function entry_label(e, width)
-    if e.caster == nil then return e.who end
-    local room = math.max(MIN_CASTER, (width - 1) - #e.who - 3)
-    return e.who .. ' (' .. cut(e.caster, room) .. ')'
+    local who = show_who(e.who)
+    if e.caster == nil then return who end
+    local room = math.max(MIN_CASTER, (width - 1) - #who - 3)
+    return who .. ' (' .. cut(e.caster, room) .. ')'
 end
 
 -- Full label for a row; the caster name is cut only as much as needed.
@@ -1501,6 +1686,10 @@ local function prune_rows(store, now, openTbl, keyPrefix)
         local lowest, lowEst = nil, false
         for who, pp in pairs(t.people) do
             if now > pp.exp + KEEP_AFTER then
+                if not testMode then
+                    dlog(name .. ' on ' .. show_who(who) .. ': timer ran out (' .. mmss(pp.dur or 0) .. ', '
+                         .. (SRC_TEXT[pp.src or ''] or 'unknown') .. ')')
+                end
                 t.people[who] = nil
             elseif lowest == nil or pp.exp < lowest then
                 lowest, lowEst = pp.exp, pp.est
@@ -1881,6 +2070,8 @@ local FAMILIES = {
     { name = 'Glass',   themes = { 'Glass', 'Glass Rose', 'Glass Mint', 'Glass Amber',
                                    'Glass Violet', 'Glass Ocean', 'Glass Smoke', 'Glass Frost' } },
     { name = 'Nations', themes = { "San d'Oria", 'Bastok', 'Windurst' } },
+    { name = 'Expansions', themes = { "Vana'diel", 'Zilart', 'Promathia', 'Aht Urhgan', 'Goddess' } },
+    { name = 'FFXIV',   themes = { 'FFXIV' } },
     { name = 'Dark',    themes = { 'Midnight', 'Ember', 'Crystal', 'Terminal' } },
     { name = 'Simple',  themes = { 'Classic', 'Minimal', 'High Contrast' } },
 }
@@ -1966,10 +2157,146 @@ local function delete_custom(name)
 end
 
 -- Theme tab UI state
+----------------------------------------------------------------------
+-- Profiles: save every setting under a name, load it on another character.
+-- Stored in Ashita's config folder for this addon (shared by all characters):
+--   config\addons\personalbuffs\profile_<name>.lua
+-- plus profiles.txt, the list of names.
+----------------------------------------------------------------------
+local function profile_dir()
+    local base = AshitaCore:GetInstallPath()
+    if base:sub(-1) ~= '\\' and base:sub(-1) ~= '/' then base = base .. '\\' end
+    return base .. 'config\\addons\\' .. addon.name .. '\\'
+end
+
+-- Letters, numbers, - and _ only, so it's a safe file name.
+local function profile_clean(name)
+    return (tostring(name or ''):gsub('[^%w%-_]', ''):sub(1, 32))
+end
+
+-- Turns a settings table into Lua text that can be loaded back.
+local function to_lua(v, indent)
+    indent = indent or ''
+    local t = type(v)
+    if t == 'string' then return string.format('%q', v) end
+    if t == 'number' or t == 'boolean' then return tostring(v) end
+    if t ~= 'table' then return 'nil' end
+    local keys = {}
+    for k in pairs(v) do
+        if type(k) == 'string' or type(k) == 'number' then keys[#keys + 1] = k end
+    end
+    table.sort(keys, function (a, b)
+        if type(a) == type(b) then return a < b end
+        return type(a) == 'number'
+    end)
+    local inner = indent .. '    '
+    local out = { '{' }
+    for _, k in ipairs(keys) do
+        local key = type(k) == 'number' and ('[' .. k .. ']') or ('[' .. string.format('%q', k) .. ']')
+        out[#out + 1] = inner .. key .. ' = ' .. to_lua(v[k], inner) .. ','
+    end
+    out[#out + 1] = indent .. '}'
+    return table.concat(out, '\n')
+end
+
+local function read_file(path)
+    local f = io.open(path, 'r')
+    if f == nil then return nil end
+    local text = f:read('*a')
+    f:close()
+    return text
+end
+
+local function write_file(path, text)
+    local f = io.open(path, 'w')
+    if f == nil then return false end
+    f:write(text)
+    f:close()
+    return true
+end
+
+-- Names of saved profiles (from profiles.txt).
+local function profile_list()
+    local names = {}
+    local text = read_file(profile_dir() .. 'profiles.txt') or ''
+    for line in text:gmatch('[^\r\n]+') do
+        local n = profile_clean(line)
+        if n ~= '' then names[#names + 1] = n end
+    end
+    table.sort(names)
+    return names
+end
+
+local function profile_list_save(names)
+    table.sort(names)
+    return write_file(profile_dir() .. 'profiles.txt', table.concat(names, '\n') .. '\n')
+end
+
+-- Saves every setting. Returns true, name  or  false, reason.
+local function profile_save(name)
+    name = profile_clean(name)
+    if name == '' then return false, 'Use letters, numbers, - or _ for the name.' end
+    settings.save()   -- makes sure the folder exists
+    local text = '-- PersonalBuffs profile "' .. name .. '"\nreturn ' .. to_lua(config) .. '\n'
+    if not write_file(profile_dir() .. 'profile_' .. name .. '.lua', text) then
+        return false, 'Could not write the profile file.'
+    end
+    local names, found = profile_list(), false
+    for _, n in ipairs(names) do if n:lower() == name:lower() then found = true end end
+    if not found then names[#names + 1] = name; profile_list_save(names) end
+    return true, name
+end
+
+-- Loads a profile over this character's settings. Returns true, name  or  false, reason.
+local function profile_load(name)
+    name = profile_clean(name)
+    local text = read_file(profile_dir() .. 'profile_' .. name .. '.lua')
+    if text == nil then return false, 'No profile called "' .. name .. '".' end
+    local chunk = (loadstring or load)(text)
+    if chunk == nil then return false, 'That profile file is damaged.' end
+    if setfenv ~= nil then setfenv(chunk, {}) end   -- data only, no access to anything else
+    local ok, data = pcall(chunk)
+    if not ok or type(data) ~= 'table' then return false, 'That profile file is damaged.' end
+
+    -- Replace the settings in place (the settings library keeps this table).
+    for k in pairs(config) do config[k] = nil end
+    local function copy(v)
+        if type(v) ~= 'table' then return v end
+        local o = T{}
+        for k, x in pairs(v) do o[k] = copy(x) end
+        return o
+    end
+    for k, v in pairs(data) do config[k] = copy(v) end
+    fill_missing(config, defaults)
+    migrate(config)
+    settings.save()
+
+    -- Redraw everything with the new settings.
+    appliedTheme   = nil
+    moveBox.buff   = true
+    moveBox.recast = true
+    if not config.party.enabled then partyTimers = T{} end
+    return true, name
+end
+
+local function profile_delete(name)
+    name = profile_clean(name)
+    local names, kept = profile_list(), {}
+    for _, n in ipairs(names) do
+        if n:lower() ~= name:lower() then kept[#kept + 1] = n end
+    end
+    profile_list_save(kept)
+    os.remove(profile_dir() .. 'profile_' .. name .. '.lua')
+end
+
 local selFamily = nil         -- family shown in the sub-theme row
 local nameBuf   = { '' }      -- name typed for a custom theme
 local showStyle = false       -- Style section open?
 local showPos   = false       -- Box position section open?
+local showProf  = false       -- Profiles section open?
+local profBuf   = { '' }      -- profile name typed in
+local profSel   = nil         -- profile picked in the list
+local profMsg   = nil         -- last result line shown under the buttons
 
 -- A small "+ Label" / "- Label" button that opens / closes a section.
 local function fold(label, open)
@@ -2182,6 +2509,49 @@ local function draw_theme_tab()
         imgui.TextColored(COL_NAME, 'A box only shows when it has something in it. Test mode helps.')
     end
     imgui.Dummy({ 0, 4 })
+    local hv = { config.hideFullLog == true }
+    if imgui.Checkbox('Hide the boxes while the full chat log is open##hidelog', hv) then
+        config.hideFullLog = hv[1]
+        settings.save()
+    end
+    showProf = fold('Profiles (copy settings to another character)', showProf)
+    if showProf then
+        imgui.TextColored(COL_NAME, 'Saves every setting: look, positions, hidden buffs, party, saved times.')
+        if has('InputText') then
+            width_push(150)
+            pcall(imgui.InputText, 'Name##profname', profBuf, 32)
+            width_pop()
+            imgui.SameLine(0, 6)
+        end
+        if imgui.SmallButton('Save settings##profsave') then
+            local name = profBuf[1]
+            if not has('InputText') or profile_clean(name) == '' then name = myName or 'default' end
+            local ok, res = profile_save(name)
+            profMsg = ok and ('Saved as "' .. res .. '".') or res
+            if ok then profSel = res; profBuf[1] = '' end
+        end
+        local list = profile_list()
+        if #list == 0 then
+            imgui.TextColored(COL_NAME, 'No profiles yet.')
+        else
+            for i, n in ipairs(list) do
+                if grid_button(i, n .. '##prof' .. i, profSel == n) then profSel = n end
+            end
+        end
+        if profSel ~= nil then
+            if imgui.SmallButton('Load "' .. profSel .. '" onto this character##profload') then
+                local ok, res = profile_load(profSel)
+                profMsg = ok and ('Loaded "' .. res .. '".') or res
+            end
+            imgui.SameLine(0, 6)
+            if imgui.SmallButton('Delete##profdel') then
+                profile_delete(profSel)
+                profMsg = 'Deleted "' .. profSel .. '".'
+                profSel = nil
+            end
+        end
+        if profMsg ~= nil then imgui.TextColored(COL_ACCENT, profMsg) end
+    end
     imgui.TextColored(COL_NAME, 'Tip: turn Test on to see the boxes while you pick.')
 end
 
@@ -2281,6 +2651,7 @@ end
 ----------------------------------------------------------------------
 ashita.events.register('d3d_present', 'pb_present', function ()
     local now = os.time()
+    update_my_name()
     if not trustsPurged then purge_trusts() end
     -- Copy in the theme's colors when it changes (or a bad name was saved).
     if appliedTheme ~= config.theme then
@@ -2289,6 +2660,8 @@ ashita.events.register('d3d_present', 'pb_present', function ()
     end
     process_pending(now)
     draw_config()
+    -- Hide the boxes while the full chat log is open (timers keep running).
+    if config.hideFullLog and full_log_open() then return end
     draw_recasts(now)
 
     -- In test mode the fake stores are shown instead of the real ones.
@@ -2336,7 +2709,10 @@ ashita.events.register('d3d_present', 'pb_present', function ()
         if next(store) == nil then
             partyStores[caster] = nil
         elseif partyOn and not config.party.hidden[caster] then
-            for _, t in pairs(store) do add(t, caster) end
+            -- Buffs you turned off in the Buffs tab are hidden for everyone's casts.
+            for name, t in pairs(store) do
+                if not is_hidden(name, t.group) then add(t, caster) end
+            end
         end
     end
 
@@ -2485,6 +2861,34 @@ ashita.events.register('command', 'pb_command', function (e)
         return
     end
 
+    -- /pb profile save|load|delete <name>, /pb profile list
+    if cmd == 'profile' or cmd == 'profiles' then
+        local sub  = (args[3] or 'list'):lower()
+        local name = args[4] or ''
+        if sub == 'save' then
+            if name == '' then name = myName or 'default' end
+            local ok, res = profile_save(name)
+            msg(ok and ('Settings saved as profile "' .. res .. '".') or res)
+        elseif sub == 'load' then
+            local ok, res = profile_load(name)
+            msg(ok and ('Loaded profile "' .. res .. '".') or res)
+        elseif sub == 'delete' then
+            profile_delete(name)
+            msg('Deleted profile "' .. profile_clean(name) .. '".')
+        else
+            local list = profile_list()
+            msg(#list == 0 and 'No profiles yet. /pb profile save <name>'
+                or ('Profiles: ' .. table.concat(list, ', ')))
+        end
+        return
+    end
+
+    if cmd == 'debug' then
+        debugMode = not debugMode
+        msg('Debug: ' .. (debugMode and 'on (chat lines when buffs start and leave)' or 'off'))
+        return
+    end
+
     if cmd == 'clear' then
         timers     = T{}
         pending    = T{}
@@ -2575,7 +2979,7 @@ ashita.events.register('command', 'pb_command', function (e)
         return
     end
 
-    msg('Commands: /pb (settings window), /pb test (on/off), /pb party (on/off), /pb clear, /pb hide <buff>, /pb show <buff>, /pb hide recast <name>, /pb show recast <name>, /pb list, /pb theme [name]')
+    msg('Commands: /pb (settings window), /pb test (on/off), /pb party (on/off), /pb clear, /pb hide <buff>, /pb show <buff>, /pb hide recast <name>, /pb show recast <name>, /pb list, /pb theme [name], /pb profile save|load|delete|list [name], /pb debug')
 end)
 
 ashita.events.register('unload', 'pb_unload', function ()

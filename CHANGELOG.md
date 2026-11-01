@@ -1,5 +1,22 @@
 # Changelog
 
+## 1.1.3
+
+**New**
+- Profiles: save every setting under a name and load it on another character (Theme tab > Profiles, or `/pb profile save|load|delete|list`).
+- `/pb debug`: chat lines when a buff starts (and where its time came from) and when it leaves the list (and why).
+- Your own name shows as "You" in the buff list (same as test mode).
+
+**Fixes**
+- Buff times read from the wrong buff (e.g. Blade Madrigal showing your food's 20+ minutes). Timers are now matched with the buff icon list, which is in the same order. Songs over 10 minutes are ignored as a safety net.
+- Songs (and other buffs) dropping early after a recast. Your buff timer is now read for a few seconds after a buff lands and the longest time is kept.
+
+## 1.1.2
+- New themes: Expansions group (Vana'diel, Zilart, Promathia, Aht Urhgan, Goddess) and FFXIV.
+- New: option to hide the boxes while the full chat log is open.
+- Party tracking skips buffs a party member can only cast on themselves (Stoneskin, Blink, Aquaveil, Utsusemi, Tonko, spikes, enspells, Berserk...).
+- Fix: buffs you turn off in the Buffs tab are now hidden when party members cast them too.
+
 ## 1.1.1
 - Fix: recast box no longer shows a fake "Brazen Rush" next to your 2-hour.
 
