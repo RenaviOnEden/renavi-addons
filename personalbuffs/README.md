@@ -36,12 +36,12 @@ An Ashita v4 addon for HorizonXI that shows how much time is left on the buffs *
 **Settings window (`/pb`)**
 - Per-job checkboxes to hide buffs, debuffs or recasts.
 - Presets: save what is hidden under a name and load it any time (any character).
-- Party tab: main on/off switch, a checkbox per person, and gear boxes per person (e.g. tick **Dilation Ring** for a RDM so their Haste / Refresh get +30s).
+- Party tab: main on/off switch, plus a checkbox and gear boxes for each person in your party right now (e.g. tick **Dilation Ring** for a RDM so their Haste / Refresh get +30s). Their choices are kept for when they rejoin.
 - Theme tab: themes in groups (Default, Glass, Nations, Dark, Simple, Expansions, FFXIV), each with sub-themes. Each theme sets colors and a style: timer bars, box headers, borders (none / thin / thick / double), side stripe, lines between groups, spacing, text size and corner roundness. Tweak any of it, then **Save look** to keep it as your own theme (Custom group). Also background opacity and exact box positions.
 - Option to hide the boxes while the full chat log is open (timers keep running).
 - Click-through option: mouse clicks go through the boxes to the game (`/pb lock`). Boxes can't be dragged while it's on; use the typed X / Y.
 - Profiles: save every setting under a name and load it on another character.
-- Test mode: fake rows so you can place the windows without casting.
+- Test mode: fake buffs, debuffs and recasts so you can place the boxes without casting.
 
 ## How buff times are worked out
 
@@ -89,7 +89,7 @@ Times on other people are always based on your own casts or your saved/estimated
 | Command | What it does |
 |---|---|
 | `/pb` or `/pb config` | Open / close the settings window |
-| `/pb test` | Test mode on / off (fake buffs and recasts) |
+| `/pb test` | Test mode on / off (fake buffs, debuffs and recasts) |
 | `/pb party` | Party buff tracking on / off |
 | `/pb debuffs` | Debuff box on / off |
 | `/pb lock` | Click-through on / off (mouse goes through the boxes) |
@@ -103,7 +103,7 @@ Times on other people are always based on your own casts or your saved/estimated
 | `/pb profile save <name>` / `load <name>` / `delete <name>` / `list` | Save all settings and load them on another character |
 | `/pb debug` | Chat lines when a buff or debuff starts and leaves the list (for bug reports) |
 
-Drag the boxes to move them. Their spots are saved.
+Drag the boxes to move them. Their spots are saved. With click-through on, use the typed X / Y in the Theme tab instead.
 
 ## Files
 
