@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.2.0
+
+**New**
+- Debuff box: debuffs you put on mobs, one section per mob, your target first. Ends early on wear-off messages or when the mob dies; cleared on zoning. Party members' debuffs show when party tracking is on.
+- `/pb debuffs` turns the Debuff box on / off (also a checkbox in the Theme tab). Its position can be typed in like the other boxes.
+- Test mode shows fake debuffs so the box can be placed.
+
 ## 1.1.3
 
 **New**

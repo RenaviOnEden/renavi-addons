@@ -1,9 +1,9 @@
 # PersonalBuffs
 
-An Ashita v4 addon for HorizonXI that shows how much time is left on the buffs **you** cast — on yourself and on others — plus your own ability and spell recasts.
+An Ashita v4 addon for HorizonXI that shows how much time is left on the buffs **you** cast — on yourself and on others — the debuffs you put on mobs, plus your own ability and spell recasts.
 
 - **Author:** Renavi
-- **Version:** 1.1.3
+- **Version:** 1.2.0
 - **Ashita:** v4 (HorizonXI launcher)
 
 > Code written with Claude (AI) at my direction. I tested it in game and maintain it.
@@ -24,6 +24,13 @@ An Ashita v4 addon for HorizonXI that shows how much time is left on the buffs *
 
 **Recast box**
 - Your own ability and spell recasts, read from your client. Shows "Ready" for 5 seconds when one comes off cooldown.
+
+**Debuff box**
+- Debuffs you put on mobs, one section per mob. Your target is listed first.
+- Covers spells (Dia / Bio, Helix, blue magic...), weapon skills, Shield Bash / Weapon Bash, Light Shot, blood pacts, jug pet and automaton moves, and weapon procs.
+- A debuff ends early when the game says it wore off or the mob dies. Cleared when you zone.
+- Times are base times (no gear). On by default; turn off with `/pb debuffs`.
+- Party members' debuffs show only when party tracking is on.
 
 **Settings window (`/pb`)**
 - Per-job checkboxes to hide buffs or recasts.
@@ -54,12 +61,15 @@ Times on other people are always based on your own casts or your saved/estimated
 
 | Source | Used for |
 |---|---|
-| Incoming action packet `0x028` (read only) | Seeing which buffs you (or party members, if on) cast and who they landed on |
+| Incoming action packet `0x028` (read only) | Seeing which buffs you (or party members, if on) cast and who they landed on; debuffs landing on mobs |
+| Incoming message packet `0x029` (read only) | Debuffs wearing off and mobs being defeated (Debuff box) |
 | Your own buff list and status timers | Real time left on buffs that are on you |
 | Vana'diel clock (memory pattern in `FFXiMain.dll`) | Turning your status timers into seconds |
 | Your recast timers | Recast box |
 | Your equipped items | Gear duration bonuses (e.g. instrument, Dilation Ring) |
-| Party list | Names, and checking a caster is in your party |
+| Party list | Names, checking a caster is in your party, your zone (Debuff box clears on zoning) |
+| Entity list | Mob names, your / your party's pets, mob gone or defeated (Debuff box) |
+| Your current target | Listing your target first in the Debuff box |
 | Open game menu name (memory pattern in `FFXiMain.dll`, same one HXUI uses) | Hiding the boxes while the full chat log is open (optional) |
 | Ashita resource manager | Spell / ability / item names |
 
@@ -78,13 +88,14 @@ Times on other people are always based on your own casts or your saved/estimated
 | `/pb` or `/pb config` | Open / close the settings window |
 | `/pb test` | Test mode on / off (fake buffs and recasts) |
 | `/pb party` | Party buff tracking on / off |
+| `/pb debuffs` | Debuff box on / off |
 | `/pb clear` | Clear all current timers |
 | `/pb hide <buff>` / `/pb show <buff>` | Hide / show a buff |
 | `/pb hide recast <name>` / `/pb show recast <name>` | Hide / show a recast |
 | `/pb list` | List what is hidden |
 | `/pb theme` / `/pb theme <name>` | List themes / pick a theme (your saved ones work too) |
 | `/pb profile save <name>` / `load <name>` / `delete <name>` / `list` | Save all settings and load them on another character |
-| `/pb debug` | Chat lines when a buff starts and leaves the list (for bug reports) |
+| `/pb debug` | Chat lines when a buff or debuff starts and leaves the list (for bug reports) |
 
 Drag the boxes to move them. Their spots are saved.
 
@@ -99,6 +110,7 @@ Drag the boxes to move them. Their spots are saved.
 - If a buff is removed early (dispel, death, overwritten by someone else), its timer on other people keeps running until it ends.
 - Times on other people are estimates unless the same buff also landed on you.
 - Gear on other players cannot be seen. Tick their gear in the Party tab so their estimates include it.
+- Debuff times are base times. Gear, merits and resists aren't counted, so a debuff can end before its timer (then the wear-off message clears it).
 
 ## Credits
 
