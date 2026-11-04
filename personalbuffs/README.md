@@ -3,7 +3,7 @@
 An Ashita v4 addon for HorizonXI that shows how much time is left on the buffs **you** cast — on yourself and on others — the debuffs you put on mobs, plus your own ability and spell recasts.
 
 - **Author:** Renavi
-- **Version:** 1.2.0
+- **Version:** 1.2.1
 - **Ashita:** v4 (HorizonXI launcher)
 
 > Code written with Claude (AI) at my direction. I tested it in game and maintain it.
@@ -30,10 +30,12 @@ An Ashita v4 addon for HorizonXI that shows how much time is left on the buffs *
 - Covers spells (Dia / Bio, Helix, blue magic...), weapon skills, Shield Bash / Weapon Bash, Light Shot, blood pacts, jug pet and automaton moves, and weapon procs.
 - A debuff ends early when the game says it wore off or the mob dies. Cleared when you zone.
 - Times are base times (no gear). On by default; turn off with `/pb debuffs`.
+- Hide single debuffs or whole groups in the Debuffs tab, same as buffs (hidden by the spell, weapon skill, ability or pet move that puts it on).
 - Party members' debuffs show only when party tracking is on.
 
 **Settings window (`/pb`)**
-- Per-job checkboxes to hide buffs or recasts.
+- Per-job checkboxes to hide buffs, debuffs or recasts.
+- Presets: save what is hidden under a name and load it any time (any character).
 - Party tab: main on/off switch, a checkbox per person, and gear boxes per person (e.g. tick **Dilation Ring** for a RDM so their Haste / Refresh get +30s).
 - Theme tab: themes in groups (Default, Glass, Nations, Dark, Simple, Expansions, FFXIV), each with sub-themes. Each theme sets colors and a style: timer bars, box headers, borders (none / thin / thick / double), side stripe, lines between groups, spacing, text size and corner roundness. Tweak any of it, then **Save look** to keep it as your own theme (Custom group). Also background opacity and exact box positions.
 - Option to hide the boxes while the full chat log is open (timers keep running).
@@ -55,7 +57,7 @@ Times on other people are always based on your own casts or your saved/estimated
 - Does **not** track alliance members or strangers — party only, and only if you turn it on.
 - Does **not** track Trusts.
 - Does **not** connect to the internet or any outside service.
-- Only writes files in its own Ashita config folder (`config\addons\personalbuffs\`): settings and saved profiles.
+- Only writes files in its own Ashita config folder (`config\addons\personalbuffs\`): settings, saved profiles and presets.
 
 ## What it reads (for reviewers)
 
@@ -92,6 +94,8 @@ Times on other people are always based on your own casts or your saved/estimated
 | `/pb clear` | Clear all current timers |
 | `/pb hide <buff>` / `/pb show <buff>` | Hide / show a buff |
 | `/pb hide recast <name>` / `/pb show recast <name>` | Hide / show a recast |
+| `/pb hide debuff <name>` / `/pb show debuff <name>` | Hide / show a debuff |
+| `/pb preset save <name>` / `load <name>` / `delete <name>` / `list` | Save what is hidden and load it again |
 | `/pb list` | List what is hidden |
 | `/pb theme` / `/pb theme <name>` | List themes / pick a theme (your saved ones work too) |
 | `/pb profile save <name>` / `load <name>` / `delete <name>` / `list` | Save all settings and load them on another character |

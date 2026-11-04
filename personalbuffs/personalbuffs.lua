@@ -27,7 +27,7 @@
 ----------------------------------------------------------------------
 addon.name    = 'personalbuffs'
 addon.author  = 'Renavi'
-addon.version = '1.2.0'
+addon.version = '1.2.1'
 addon.desc    = 'Shows time left on buffs you give to yourself and others.'
 addon.link    = 'https://github.com/RenaviOnEden/personalbuffs'
 
@@ -64,6 +64,8 @@ local defaults = T{
 
     -- Debuff box (separate window, own position)
     debuffs      = true,    -- track debuffs you put on mobs
+    hiddenDebuffs      = T{}, -- [name] = true when switched off
+    hiddenDebuffGroups = T{}, -- [group name] = true when switched off
     dx           = 250,
     dy           = 250,
 
@@ -627,13 +629,13 @@ local function build_test()
     local function mob(name, isTarget, list)
         local m = { name = name, test = isTarget, fx = T{} }
         for i, d in ipairs(list) do
-            m.fx[i] = { label = d[1], exp = now + d[2], dur = d[3] }
+            m.fx[i] = { label = d[1], exp = now + d[2], dur = d[3], key = d[1], group = d[4] }
         end
         return m
     end
     local debuffs = T{
-        [1] = mob('Goblin Smithy', true, { { 'Slow II', 150, 180 }, { 'Paralyze', 40, 120 }, { 'Dia II', 12, 120 } }),
-        [2] = mob('Goblin Mugger', false, { { 'Sleep', 25, 60 } }),
+        [1] = mob('Goblin Smithy', true, { { 'Slow II', 150, 180, 'White Magic' }, { 'Paralyze', 40, 120, 'White Magic' }, { 'Dia II', 12, 120, 'White Magic' } }),
+        [2] = mob('Goblin Mugger', false, { { 'Sleep', 25, 60, 'Black Magic' } }),
     }
     test = { timers = t, party = party, recasts = recasts, debuffs = debuffs, start = os.time() }
 end
@@ -1324,97 +1326,107 @@ local BIO = { [230] = true, [231] = true, [232] = true }
 
 -- Weapon skills: [WS ID] = { secs, fx } or { secs, fxs = { ... } }
 local DB_WS = {
-    [181] = { 180, fx = 149 },  -- Shell Crusher (Defense Down)
-    [83]  = { 180, fx = 149 },  -- Armor Break
-    [87]  = { 180, fxs = { 149, 147 } },  -- Full Break (Defense + Attack Down)
-    [155] = { 180, fx = 149 },  -- Tachi: Ageha
-    [187] = { 180, fx = 149 },  -- Garland of Bliss
-    [89]  = { 180, fx = 149 },  -- Metatron Torment
-    [85]  = { 180, fx = 147 },  -- Weapon Break (Attack Down)
-    [185] = { 180, fx = 147 },  -- Gate of Tartarus
-    [107] = { 180, fx = 147 },  -- Infernal Scythe
-    [16]  = { 90, fx = 3 },     -- Wasp Sting (Poison)
-    [17]  = { 90, fx = 3 },     -- Viper Bite
-    [18]  = { 30, fx = 11 },    -- Shadowstitch (Bind)
-    [35]  = { 5, fx = 10 },     -- Flat Blade (Stun)
-    [115] = { 5, fx = 10 },     -- Leg Sweep
-    [2]   = { 5, fx = 10 },     -- Shoulder Tackle
-    [65]  = { 5, fx = 10 },     -- Smash Axe
-    [162] = { 5, fx = 10 },     -- Brainshaker
-    [145] = { 5, fx = 10 },     -- Tachi: Hobaku
-    [80]  = { 180, fx = 148 },  -- Shield Break (Evasion Down)
-    [73]  = { 120, fx = 146 },  -- Onslaught (Accuracy Down)
-    [170] = { 120, fx = 148 },  -- Randgrith
-    [22]  = { 210, fx = 13 },   -- Energy Drain (Slow)
+    [181] = { 180, fx = 149, n = 'Shell Crusher' },  -- Shell Crusher (Defense Down)
+    [83]  = { 180, fx = 149, n = 'Armor Break' },  -- Armor Break
+    [87]  = { 180, fxs = { 149, 147 }, n = 'Full Break' },  -- Full Break (Defense + Attack Down)
+    [155] = { 180, fx = 149, n = 'Tachi: Ageha' },  -- Tachi: Ageha
+    [187] = { 180, fx = 149, n = 'Garland of Bliss' },  -- Garland of Bliss
+    [89]  = { 180, fx = 149, n = 'Metatron Torment' },  -- Metatron Torment
+    [85]  = { 180, fx = 147, n = 'Weapon Break' },  -- Weapon Break (Attack Down)
+    [185] = { 180, fx = 147, n = 'Gate of Tartarus' },  -- Gate of Tartarus
+    [107] = { 180, fx = 147, n = 'Infernal Scythe' },  -- Infernal Scythe
+    [16]  = { 90, fx = 3, n = 'Wasp Sting' },     -- Wasp Sting (Poison)
+    [17]  = { 90, fx = 3, n = 'Viper Bite' },     -- Viper Bite
+    [18]  = { 30, fx = 11, n = 'Shadowstitch' },    -- Shadowstitch (Bind)
+    [35]  = { 5, fx = 10, n = 'Flat Blade' },     -- Flat Blade (Stun)
+    [115] = { 5, fx = 10, n = 'Leg Sweep' },     -- Leg Sweep
+    [2]   = { 5, fx = 10, n = 'Shoulder Tackle' },     -- Shoulder Tackle
+    [65]  = { 5, fx = 10, n = 'Smash Axe' },     -- Smash Axe
+    [162] = { 5, fx = 10, n = 'Brainshaker' },     -- Brainshaker
+    [145] = { 5, fx = 10, n = 'Tachi: Hobaku' },     -- Tachi: Hobaku
+    [80]  = { 180, fx = 148, n = 'Shield Break' },  -- Shield Break (Evasion Down)
+    [73]  = { 120, fx = 146, n = 'Onslaught' },  -- Onslaught (Accuracy Down)
+    [170] = { 120, fx = 148, n = 'Randgrith' },  -- Randgrith
+    [22]  = { 210, fx = 13, n = 'Energy Drain' },   -- Energy Drain (Slow)
 }
 
 -- Shield Bash / Weapon Bash land as a category 3 action (Stun).
-local DB_BASH = { [46] = true, [77] = true }
+local DB_BASH = { [46] = 'Shield Bash', [77] = 'Weapon Bash' }
 
 -- Job abilities that land with message 127: [ability ID] = { secs, fx }
 local DB_JA = {
-    [131] = { 60, fx = FX_SLEEP },  -- Light Shot
+    [131] = { 60, fx = FX_SLEEP, n = 'Light Shot' },
 }
 
 -- Avatar blood pacts: [ID] = { secs, fx } / { secs, fxs }
 local DB_PACTS = {
-    [513] = { 90, fx = 3 },    -- Poison Nails
-    [560] = { 60, fx = 13 },   -- Rock Throw
-    [562] = { 60, fx = 11 },   -- Rock Buster
-    [563] = { 120, fx = 13 },  -- Megalith Throw
-    [566] = { 60, fx = 11 },   -- Mountain Buster
-    [578] = { 60, fx = 12 },   -- Tail Whip
-    [624] = { 12, fx = 10 },   -- Shock Strike
-    [627] = { 60, fx = 4 },    -- Thunderspark
-    [630] = { 12, fx = 10 },   -- Chaotic Strike
-    [528] = { 60, fx = 5 },    -- Moonlit Charge
-    [529] = { 60, fx = 4 },    -- Crescent Fang
-    [530] = { 180, fxs = { 146, 148 } },  -- Lunar Cry
-    [611] = { 90, fx = 2 },    -- Sleepga (avatar)
+    [513] = { 90, fx = 3, n = 'Poison Nails' },    -- Poison Nails
+    [560] = { 60, fx = 13, n = 'Rock Throw' },   -- Rock Throw
+    [562] = { 60, fx = 11, n = 'Rock Buster' },   -- Rock Buster
+    [563] = { 120, fx = 13, n = 'Megalith Throw' },  -- Megalith Throw
+    [566] = { 60, fx = 11, n = 'Mountain Buster' },   -- Mountain Buster
+    [578] = { 60, fx = 12, n = 'Tail Whip' },   -- Tail Whip
+    [624] = { 12, fx = 10, n = 'Shock Strike' },   -- Shock Strike
+    [627] = { 60, fx = 4, n = 'Thunderspark' },    -- Thunderspark
+    [630] = { 12, fx = 10, n = 'Chaotic Strike' },   -- Chaotic Strike
+    [528] = { 60, fx = 5, n = 'Moonlit Charge' },    -- Moonlit Charge
+    [529] = { 60, fx = 4, n = 'Crescent Fang' },    -- Crescent Fang
+    [530] = { 180, fxs = { 146, 148 }, n = 'Lunar Cry' },  -- Lunar Cry
+    [611] = { 90, fx = 2, n = 'Sleepga (avatar)' },    -- Sleepga (avatar)
 }
 local PACT_NIGHTMARE = 1908    -- Nightmare: Sleep, 60s
 
 -- Jug pet Ready moves and automaton attacks (category 11): [ID] = { secs, fx }
 local DB_PETS = {
-    [3841] = { 120, fx = 5 },   -- Dust Cloud
-    [3860] = { 30, fx = 2 },    -- Sheep Song
-    [3848] = { 120, fx = 4 },   -- Roar
-    [3843] = { 4, fx = 10 },    -- Head Butt
-    [3844] = { 30, fx = 2 },    -- Dream Flower
-    [3845] = { 112, fx = 138 }, -- Wild Oats
-    [3846] = { 18, fx = 3 },    -- Leaf Dagger
-    [3847] = { 35, fx = 141 },  -- Scream
-    [660]  = { 60, fx = 3 },    -- Venom
-    [3851] = { 4, fx = 10 },    -- Tail Blow
-    [3855] = { 120, fx = 148 }, -- Infrasonics
-    [3854] = { 30, fx = 6 },    -- Brain Crush
-    [3876] = { 120, fx = 148 }, -- High-Frequency Field
-    [3879] = { 35, fx = 136 },  -- Spoil
-    [3861] = { 100, fx = 136 }, -- Bubble Shower
-    [3886] = { 30, fx = 2 },    -- Soporific
-    [3887] = { 180, fx = 13 },  -- Gloeosuccus
-    [3888] = { 60, fx = 4 },    -- Palsy Pollen
-    [3890] = { 5, fx = 10 },    -- Numbing Noise
-    [3893] = { 30, fx = 3 },    -- Toxic Spit
-    [3882] = { 180, fx = 5 },   -- Sandblast
-    [3883] = { 60, fx = 11 },   -- Sandpit
-    [3884] = { 120, fx = 3 },   -- Venom Spray
-    [3896] = { 120, fx = 13 },  -- Filamented Hold
-    [3869] = { 180, fx = 4 },   -- Spore
-    [3870] = { 60, fx = 3 },    -- Queasyshroom
-    [3871] = { 180, fx = 4 },   -- Numbshroom
-    [3873] = { 50, fx = 6 },    -- Silence Gas
-    [3874] = { 90, fx = 5 },    -- Dark Spore
+    [3841] = { 120, fx = 5, n = 'Dust Cloud' },   -- Dust Cloud
+    [3860] = { 30, fx = 2, n = 'Sheep Song' },    -- Sheep Song
+    [3848] = { 120, fx = 4, n = 'Roar' },   -- Roar
+    [3843] = { 4, fx = 10, n = 'Head Butt' },    -- Head Butt
+    [3844] = { 30, fx = 2, n = 'Dream Flower' },    -- Dream Flower
+    [3845] = { 112, fx = 138, n = 'Wild Oats' }, -- Wild Oats
+    [3846] = { 18, fx = 3, n = 'Leaf Dagger' },    -- Leaf Dagger
+    [3847] = { 35, fx = 141, n = 'Scream' },  -- Scream
+    [660]  = { 60, fx = 3, n = 'Venom' },    -- Venom
+    [3851] = { 4, fx = 10, n = 'Tail Blow' },    -- Tail Blow
+    [3855] = { 120, fx = 148, n = 'Infrasonics' }, -- Infrasonics
+    [3854] = { 30, fx = 6, n = 'Brain Crush' },    -- Brain Crush
+    [3876] = { 120, fx = 148, n = 'High-Frequency Field' }, -- High-Frequency Field
+    [3879] = { 35, fx = 136, n = 'Spoil' },  -- Spoil
+    [3861] = { 100, fx = 136, n = 'Bubble Shower' }, -- Bubble Shower
+    [3886] = { 30, fx = 2, n = 'Soporific' },    -- Soporific
+    [3887] = { 180, fx = 13, n = 'Gloeosuccus' },  -- Gloeosuccus
+    [3888] = { 60, fx = 4, n = 'Palsy Pollen' },    -- Palsy Pollen
+    [3890] = { 5, fx = 10, n = 'Numbing Noise' },    -- Numbing Noise
+    [3893] = { 30, fx = 3, n = 'Toxic Spit' },    -- Toxic Spit
+    [3882] = { 180, fx = 5, n = 'Sandblast' },   -- Sandblast
+    [3883] = { 60, fx = 11, n = 'Sandpit' },   -- Sandpit
+    [3884] = { 120, fx = 3, n = 'Venom Spray' },   -- Venom Spray
+    [3896] = { 120, fx = 13, n = 'Filamented Hold' },  -- Filamented Hold
+    [3869] = { 180, fx = 4, n = 'Spore' },   -- Spore
+    [3870] = { 60, fx = 3, n = 'Queasyshroom' },    -- Queasyshroom
+    [3871] = { 180, fx = 4, n = 'Numbshroom' },   -- Numbshroom
+    [3873] = { 50, fx = 6, n = 'Silence Gas' },    -- Silence Gas
+    [3874] = { 90, fx = 5, n = 'Dark Spore' },    -- Dark Spore
     -- Automaton
-    [2067] = { 30, fx = 148 },  -- Knockout
-    [2299] = { 4, fx = 10 },    -- Bone Crusher
-    [2066] = { 4, fx = 10 },    -- Daze
+    [2067] = { 30, fx = 148, n = 'Knockout' },  -- Knockout
+    [2299] = { 4, fx = 10, n = 'Bone Crusher' },    -- Bone Crusher
+    [2066] = { 4, fx = 10, n = 'Daze' },    -- Daze
 }
+
+-- Automaton attacks (in DB_PETS), listed under PUP in the menu.
+local DB_AUTOMATON = { [2067] = true, [2299] = true, [2066] = true }
+
+-- Debuff groups in the menu and for hiding, in display order.
+local DEBUFF_GROUPS = T{ 'White Magic', 'Black Magic', 'Songs', 'Ninjutsu', 'Blue Magic',
+                         'Weapon Skills', 'Abilities', 'Pets', 'Other' }
+local DEBUFF_PROCS = 'Weapon procs'    -- name for all additional effects
+local DEBUFF_OTHER = 'Other effects'   -- name for anything not listed
 
 -- Weapon procs (additional effects): [effect ID] = secs. Others get 30s.
 local DB_PROCS = { [2] = 25, [149] = 60, [12] = 30, [6] = 60, [10] = 5, [3] = 30 }
 
--- State: [mob server ID] = { name, index, fx = { [effect ID] = { label, exp, dur, caster } } }
+-- State: [mob server ID] = { name, index, fx = { [effect ID] = { label, exp, dur, caster, key, group } } }
+-- key / group = what to hide it by: the spell, weapon skill, ability or pet move that put it on.
 local debuffMobs = T{}
 local debuffZone = nil
 
@@ -1526,10 +1538,30 @@ local function handle_debuffs(e)
     local rm   = AshitaCore:GetResourceManager()
     local now  = os.time()
     local spellName = nil
+    -- What put the debuff on (for hiding): name and menu group.
+    local srcKey, srcGroup = DEBUFF_OTHER, 'Other'
     if cat == 4 then
         local sp = rm:GetSpellById(param)
         if sp == nil or is_trust(param, sp) then return end
         spellName = sp.Name[1]
+        srcKey, srcGroup = spellName, spell_group(sp)
+    elseif cat == 3 and DB_WS[param] then
+        srcKey, srcGroup = DB_WS[param].n, 'Weapon Skills'
+    elseif cat == 3 and DB_BASH[param] then
+        srcKey, srcGroup = DB_BASH[param], 'Abilities'
+    elseif cat == 6 then
+        local ab = rm:GetAbilityById(param + 512)
+        if DB_JA[param] then
+            srcKey, srcGroup = DB_JA[param].n, 'Abilities'
+        elseif ab ~= nil and ab.Name[1] ~= nil and ab.Name[1] ~= '' then
+            srcKey, srcGroup = ab.Name[1], 'Abilities'
+        end
+    elseif cat == 13 and param == PACT_NIGHTMARE then
+        srcKey, srcGroup = 'Nightmare', 'Pets'
+    elseif cat == 13 and DB_PACTS[param] then
+        srcKey, srcGroup = DB_PACTS[param].n, 'Pets'
+    elseif cat == 11 and DB_PETS[param] then
+        srcKey, srcGroup = DB_PETS[param].n, 'Pets'
     end
 
     -- One result on one target.
@@ -1541,7 +1573,7 @@ local function handle_debuffs(e)
             local d = mob and mob.fx[fx]
             return d ~= nil and d.exp >= now
         end
-        local function set(fx, secs, label)
+        local function set(fx, secs, label, key, group)
             if fx == nil or fx <= 0 then return end
             local mob = debuffMobs[r.tid]
             if mob == nil then
@@ -1550,7 +1582,8 @@ local function handle_debuffs(e)
                 debuffMobs[r.tid] = mob
             end
             label = label or effect_name(fx)
-            mob.fx[fx] = { label = label, exp = now + secs, dur = secs, caster = caster }
+            mob.fx[fx] = { label = label, exp = now + secs, dur = secs, caster = caster,
+                           key = key or srcKey, group = group or srcGroup }
             dlog(label .. ' on ' .. mob.name .. ': ' .. mmss(secs))
         end
         local function set_all(d, label)
@@ -1614,7 +1647,7 @@ local function handle_debuffs(e)
         elseif MSG_OFF[msg] then
             debuff_clear(r.tid, r.value, 'removed')
         elseif r.aeMsg ~= nil and MSG_PROC[r.aeMsg] then
-            set(r.aeParam, DB_PROCS[r.aeParam] or 30, nil)
+            set(r.aeParam, DB_PROCS[r.aeParam] or 30, nil, DEBUFF_PROCS, 'Other')
         end
     end
 
@@ -2212,7 +2245,9 @@ local function draw_debuffs(now, partyOn)
         for _, d in pairs(mob.fx) do
             local okCaster = d.caster == nil
                 or (partyOn and not config.party.hidden[d.caster])
-            if okCaster then
+            local hiddenFx = config.hiddenDebuffs[d.key or ''] == true
+                or config.hiddenDebuffGroups[d.group or ''] == true
+            if okCaster and not hiddenFx then
                 rows:append(d)
                 if #d.label > width then width = #d.label end
             end
@@ -2312,7 +2347,7 @@ end
 ----------------------------------------------------------------------
 local JOB_NAMES = { 'WAR', 'MNK', 'WHM', 'BLM', 'RDM', 'THF', 'PLD', 'DRK', 'BST', 'BRD',
                     'RNG', 'SAM', 'NIN', 'DRG', 'SMN', 'BLU', 'COR', 'PUP', 'DNC', 'SCH' }
-local catalog = nil   -- [job] = { buffs = {name=group}, recasts = {name=group} }
+local catalog = nil   -- [job] = { buffs = {name=group}, recasts = {name=group}, debuffs = {name=group} }
 local spellOrder = {} -- [spell name] = spell ID (used to order tiers)
 local songNames  = {} -- [spell name] = true for songs
 
@@ -2320,8 +2355,28 @@ local function build_catalog()
     local ok, data = pcall(require, 'jobdata')
     catalog = {}
     for job = 1, #JOB_NAMES do
-        catalog[job] = { buffs = {}, recasts = {} }
+        catalog[job] = { buffs = {}, recasts = {}, debuffs = {} }
     end
+
+    -- Debuffs that don't come from jobdata: weapon skills, procs and other
+    -- effects for every job; job abilities and pet moves for their job.
+    local JOB = { PLD = 7, DRK = 8, BST = 9, SMN = 15, COR = 17, PUP = 18 }
+    for job = 1, #JOB_NAMES do
+        local d = catalog[job].debuffs
+        for _, ws in pairs(DB_WS) do d[ws.n] = 'Weapon Skills' end
+        d[DEBUFF_PROCS] = 'Other'
+        d[DEBUFF_OTHER] = 'Other'
+    end
+    catalog[JOB.PLD].debuffs[DB_BASH[46]] = 'Abilities'
+    catalog[JOB.DRK].debuffs[DB_BASH[77]] = 'Abilities'
+    for _, ja in pairs(DB_JA) do catalog[JOB.COR].debuffs[ja.n] = 'Abilities' end
+    for _, pact in pairs(DB_PACTS) do catalog[JOB.SMN].debuffs[pact.n] = 'Pets' end
+    catalog[JOB.SMN].debuffs['Nightmare'] = 'Pets'
+    for id, mv in pairs(DB_PETS) do
+        local job = DB_AUTOMATON[id] and JOB.PUP or JOB.BST
+        catalog[job].debuffs[mv.n] = 'Pets'
+    end
+
     if not ok or data == nil then return end
     local rm = AshitaCore:GetResourceManager()
 
@@ -2334,6 +2389,7 @@ local function build_catalog()
             for job, _ in pairs(info.jobs) do
                 if catalog[job] ~= nil then
                     if info.buff then catalog[job].buffs[name] = spell_group(spell) end
+                    if DB_SPELLS[id] then catalog[job].debuffs[name] = spell_group(spell) end
                     catalog[job].recasts[name] = 'Spells'
                 end
             end
@@ -2371,7 +2427,7 @@ end
 -- Menu state
 local draw_party_tab   -- defined below
 local selJob = nil         -- job shown on the right
-local selTab = 'Buffs'     -- 'Buffs' or 'Recasts'
+local selTab = 'Buffs'     -- 'Buffs', 'Recasts', 'Debuffs', 'Party' or 'Theme'
 local CHILD_BORDER = ImGuiChildFlags_Borders or true
 
 -- A button that looks "pressed" when selected.
@@ -2889,6 +2945,80 @@ local function profile_delete(name)
     os.remove(profile_dir() .. 'profile_' .. name .. '.lua')
 end
 
+----------------------------------------------------------------------
+-- Presets: just the show / hide choices (buffs, recasts, debuffs), saved
+-- by name. Shared by all characters, next to the profiles:
+-- preset_<name>.lua + presets.txt. Look and box positions are not touched.
+----------------------------------------------------------------------
+local PRESET_KEYS = { 'hidden', 'hiddenGroups', 'hiddenRecast', 'hiddenRecastGroups',
+                      'hiddenDebuffs', 'hiddenDebuffGroups' }
+
+local function preset_list()
+    local names = {}
+    local text = read_file(profile_dir() .. 'presets.txt') or ''
+    for line in text:gmatch('[^\r\n]+') do
+        local n = profile_clean(line)
+        if n ~= '' then names[#names + 1] = n end
+    end
+    table.sort(names)
+    return names
+end
+
+local function preset_list_save(names)
+    table.sort(names)
+    return write_file(profile_dir() .. 'presets.txt', table.concat(names, '\n') .. '\n')
+end
+
+-- Saves what is hidden right now. Returns true, name  or  false, reason.
+local function preset_save(name)
+    name = profile_clean(name)
+    if name == '' then return false, 'Use letters, numbers, - or _ for the name.' end
+    settings.save()   -- makes sure the folder exists
+    local data = {}
+    for _, k in ipairs(PRESET_KEYS) do data[k] = config[k] or {} end
+    local text = '-- PersonalBuffs preset "' .. name .. '" (what is hidden)\nreturn ' .. to_lua(data) .. '\n'
+    if not write_file(profile_dir() .. 'preset_' .. name .. '.lua', text) then
+        return false, 'Could not write the preset file.'
+    end
+    local names, found = preset_list(), false
+    for _, n in ipairs(names) do if n:lower() == name:lower() then found = true end end
+    if not found then names[#names + 1] = name; preset_list_save(names) end
+    return true, name
+end
+
+-- Loads a preset's show / hide choices. Returns true, name  or  false, reason.
+local function preset_load(name)
+    name = profile_clean(name)
+    local text = read_file(profile_dir() .. 'preset_' .. name .. '.lua')
+    if text == nil then return false, 'No preset called "' .. name .. '".' end
+    local chunk = (loadstring or load)(text)
+    if chunk == nil then return false, 'That preset file is damaged.' end
+    if setfenv ~= nil then setfenv(chunk, {}) end   -- data only, no access to anything else
+    local ok, data = pcall(chunk)
+    if not ok or type(data) ~= 'table' then return false, 'That preset file is damaged.' end
+    for _, k in ipairs(PRESET_KEYS) do
+        local t = T{}
+        if type(data[k]) == 'table' then
+            for n, v in pairs(data[k]) do
+                if type(n) == 'string' and v == true then t[n] = true end
+            end
+        end
+        config[k] = t
+    end
+    settings.save()
+    return true, name
+end
+
+local function preset_delete(name)
+    name = profile_clean(name)
+    local names, kept = preset_list(), {}
+    for _, n in ipairs(names) do
+        if n:lower() ~= name:lower() then kept[#kept + 1] = n end
+    end
+    preset_list_save(kept)
+    os.remove(profile_dir() .. 'preset_' .. name .. '.lua')
+end
+
 local selFamily = nil         -- family shown in the sub-theme row
 local nameBuf   = { '' }      -- name typed for a custom theme
 local showStyle = false       -- Style section open?
@@ -3162,6 +3292,52 @@ local function draw_theme_tab()
     imgui.TextColored(COL_NAME, 'Tip: turn Test on to see the boxes while you pick.')
 end
 
+-- Presets section, shown at the top of the Buffs / Recasts / Debuffs tabs.
+local showPreset = false
+local presetBuf  = { '' }
+local presetSel  = nil
+local presetMsg  = nil
+local function draw_presets()
+    showPreset = fold('Presets (save what is hidden, load it any time)', showPreset)
+    if not showPreset then return end
+    imgui.TextColored(COL_NAME, 'Saves which buffs, debuffs and recasts are hidden. Any character can load them.')
+    if has('InputText') then
+        width_push(150)
+        pcall(imgui.InputText, 'Name##presetname', presetBuf, 32)
+        width_pop()
+        imgui.SameLine(0, 6)
+    end
+    if imgui.SmallButton('Save what is hidden##presetsave') then
+        local name = presetBuf[1]
+        if not has('InputText') or profile_clean(name) == '' then name = 'preset' .. (#preset_list() + 1) end
+        local ok, res = preset_save(name)
+        presetMsg = ok and ('Saved as "' .. res .. '".') or res
+        if ok then presetSel = res; presetBuf[1] = '' end
+    end
+    local list = preset_list()
+    if #list == 0 then
+        imgui.TextColored(COL_NAME, 'No presets yet.')
+    else
+        for i, n in ipairs(list) do
+            if grid_button(i, n .. '##preset' .. i, presetSel == n) then presetSel = n end
+        end
+    end
+    if presetSel ~= nil then
+        if imgui.SmallButton('Load "' .. presetSel .. '"##presetload') then
+            local ok, res = preset_load(presetSel)
+            presetMsg = ok and ('Loaded "' .. res .. '".') or res
+        end
+        imgui.SameLine(0, 6)
+        if imgui.SmallButton('Delete##presetdel') then
+            preset_delete(presetSel)
+            presetMsg = 'Deleted "' .. presetSel .. '".'
+            presetSel = nil
+        end
+    end
+    if presetMsg ~= nil then imgui.TextColored(COL_ACCENT, presetMsg) end
+    imgui.Dummy({ 0, 4 })
+end
+
 local function draw_config()
     if not showConfig[1] then return end
     if catalog == nil then build_catalog() end
@@ -3173,7 +3349,7 @@ local function draw_config()
         selJob = JOB_NAMES[main] ~= nil and main or 1
     end
 
-    imgui.SetNextWindowSize({ 520, 420 }, ImGuiCond_FirstUseEver)
+    imgui.SetNextWindowSize({ 600, 420 }, ImGuiCond_FirstUseEver)
     push_style()
     if imgui.Begin('PersonalBuffs##pbconfig', showConfig, ImGuiWindowFlags_NoCollapse) then
 
@@ -3205,6 +3381,8 @@ local function draw_config()
         imgui.SameLine(0, 4)
         if pick_button('Recasts##tabr', selTab == 'Recasts', 62) then selTab = 'Recasts' end
         imgui.SameLine(0, 4)
+        if pick_button('Debuffs##tabd', selTab == 'Debuffs', 62) then selTab = 'Debuffs' end
+        imgui.SameLine(0, 4)
         if pick_button('Party##tabp', selTab == 'Party', 62) then selTab = 'Party' end
         imgui.SameLine(0, 4)
         if pick_button('Theme##tabt', selTab == 'Theme', 62) then selTab = 'Theme' end
@@ -3226,11 +3404,19 @@ local function draw_config()
             return
         end
 
-        local isBuffs = (selTab == 'Buffs')
-        local map     = isBuffs and catalog[selJob].buffs or catalog[selJob].recasts
-        local groups  = isBuffs and GROUPS or RECAST_GROUPS
-        local hidden  = isBuffs and config.hidden or config.hiddenRecast
-        local hgroups = isBuffs and config.hiddenGroups or config.hiddenRecastGroups
+        draw_presets()
+
+        local map, groups, hidden, hgroups
+        if selTab == 'Buffs' then
+            map, groups = catalog[selJob].buffs, GROUPS
+            hidden, hgroups = config.hidden, config.hiddenGroups
+        elseif selTab == 'Debuffs' then
+            map, groups = catalog[selJob].debuffs, DEBUFF_GROUPS
+            hidden, hgroups = config.hiddenDebuffs, config.hiddenDebuffGroups
+        else
+            map, groups = catalog[selJob].recasts, RECAST_GROUPS
+            hidden, hgroups = config.hiddenRecast, config.hiddenRecastGroups
+        end
 
         local any = false
         for _, g in ipairs(groups) do
@@ -3518,28 +3704,63 @@ ashita.events.register('command', 'pb_command', function (e)
         return
     end
 
-    -- /pb hide <name> hides the buff; /pb hide recast <name> hides the recast.
+    -- /pb hide <name> hides the buff; /pb hide recast <name> hides the recast;
+    -- /pb hide debuff <name> hides the debuff (by the spell / skill that puts it on).
     if (cmd == 'hide' or cmd == 'show') and rest ~= '' then
-        local isRecast = false
-        local typed    = rest
-        if (args[3] or ''):lower() == 'recast' then
-            isRecast = true
-            typed    = table.concat(args, ' ', 4)
+        local kind  = (args[3] or ''):lower()
+        local typed = rest
+        if kind == 'recast' or kind == 'debuff' then
+            typed = table.concat(args, ' ', 4)
+        else
+            kind = 'buff'
         end
         if typed == '' then
-            msg('Use: /pb hide <buff>  or  /pb hide recast <name>')
+            msg('Use: /pb hide <buff>, /pb hide recast <name>  or  /pb hide debuff <name>')
             return
         end
-        local n = find_name(typed)
-        if isRecast then
+        local n = typed
+        if kind == 'buff' then
+            n = find_name(typed)
+        elseif kind == 'recast' then
             for r, _ in pairs(config.seenRecast) do
                 if r:lower() == typed:lower() then n = r end
             end
+        else
+            -- Match the name as shown in the Debuffs tab (any job).
+            if catalog == nil then build_catalog() end
+            for job = 1, #JOB_NAMES do
+                for d, _ in pairs(catalog[job].debuffs) do
+                    if d:lower() == typed:lower() then n = d end
+                end
+            end
         end
-        local tbl = isRecast and config.hiddenRecast or config.hidden
+        local tbl = (kind == 'recast' and config.hiddenRecast)
+                 or (kind == 'debuff' and config.hiddenDebuffs) or config.hidden
         tbl[n] = (cmd == 'hide') or nil
         settings.save()
-        msg((cmd == 'hide' and 'Hidden: ' or 'Showing: ') .. n .. (isRecast and ' (recast)' or ''))
+        msg((cmd == 'hide' and 'Hidden: ' or 'Showing: ') .. n
+            .. ((kind ~= 'buff') and (' (' .. kind .. ')') or ''))
+        return
+    end
+
+    -- /pb preset save|load|delete <name>, /pb preset list
+    if cmd == 'preset' or cmd == 'presets' then
+        local sub  = (args[3] or 'list'):lower()
+        local name = args[4] or ''
+        if sub == 'save' then
+            local ok, res = preset_save(name)
+            msg(ok and ('Saved what is hidden as preset "' .. res .. '".') or res)
+        elseif sub == 'load' then
+            local ok, res = preset_load(name)
+            msg(ok and ('Loaded preset "' .. res .. '".') or res)
+        elseif sub == 'delete' then
+            preset_delete(name)
+            msg('Deleted preset "' .. profile_clean(name) .. '".')
+        else
+            local list = preset_list()
+            msg(#list == 0 and 'No presets yet. /pb preset save <name>'
+                or ('Presets: ' .. table.concat(list, ', ')))
+        end
         return
     end
 
@@ -3587,6 +3808,12 @@ ashita.events.register('command', 'pb_command', function (e)
         for g, v in pairs(config.hiddenRecastGroups) do
             if v then names:append(g .. ' (recast group)') end
         end
+        for n, v in pairs(config.hiddenDebuffs) do
+            if v then names:append(n .. ' (debuff)') end
+        end
+        for g, v in pairs(config.hiddenDebuffGroups) do
+            if v then names:append(g .. ' (debuff group)') end
+        end
         table.sort(names)
         if #names == 0 then
             msg('Nothing is hidden.')
@@ -3596,7 +3823,7 @@ ashita.events.register('command', 'pb_command', function (e)
         return
     end
 
-    msg('Commands: /pb (settings window), /pb test (on/off), /pb party (on/off), /pb debuffs (on/off), /pb clear, /pb hide <buff>, /pb show <buff>, /pb hide recast <name>, /pb show recast <name>, /pb list, /pb theme [name], /pb profile save|load|delete|list [name], /pb debug')
+    msg('Commands: /pb (settings window), /pb test (on/off), /pb party (on/off), /pb debuffs (on/off), /pb clear, /pb hide <buff>, /pb show <buff>, /pb hide recast <name>, /pb show recast <name>, /pb hide debuff <name>, /pb show debuff <name>, /pb list, /pb preset save|load|delete|list [name], /pb theme [name], /pb profile save|load|delete|list [name], /pb debug')
 end)
 
 ashita.events.register('unload', 'pb_unload', function ()

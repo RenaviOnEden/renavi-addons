@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.2.1
+
+**New**
+- Debuffs tab: hide single debuffs or whole groups per job, same as buffs. `/pb hide debuff <name>` / `/pb show debuff <name>`.
+- Presets: save what is hidden (buffs, debuffs, recasts) under a name and load it any time. Shared by all characters. In the Buffs / Recasts / Debuffs tabs, or `/pb preset save|load|delete|list`.
+
 ## 1.2.0
 
 **New**
