@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.2.2
+
+**New**
+- Debuff box: a party member's debuff shows who landed it, like `Slow II (Aria)`.
+- Click-through option: mouse clicks go through the boxes to the game. Theme tab checkbox or `/pb lock`. Move boxes with the typed X / Y while it's on.
+
+**Fixes**
+- Party tab only lists who is in your party right now (not everyone you've partied with). Their checkboxes are still saved and come back when they rejoin.
+- 1.2.0 / 1.2.1 failed to load ("main function has more than 200 local variables"). Debuff tracking moved to its own file, `debuffs.lua`.
+
 ## 1.2.1
 
 **New**

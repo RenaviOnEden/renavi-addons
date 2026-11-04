@@ -3,7 +3,7 @@
 An Ashita v4 addon for HorizonXI that shows how much time is left on the buffs **you** cast — on yourself and on others — the debuffs you put on mobs, plus your own ability and spell recasts.
 
 - **Author:** Renavi
-- **Version:** 1.2.1
+- **Version:** 1.2.2
 - **Ashita:** v4 (HorizonXI launcher)
 
 > Code written with Claude (AI) at my direction. I tested it in game and maintain it.
@@ -31,7 +31,7 @@ An Ashita v4 addon for HorizonXI that shows how much time is left on the buffs *
 - A debuff ends early when the game says it wore off or the mob dies. Cleared when you zone.
 - Times are base times (no gear). On by default; turn off with `/pb debuffs`.
 - Hide single debuffs or whole groups in the Debuffs tab, same as buffs (hidden by the spell, weapon skill, ability or pet move that puts it on).
-- Party members' debuffs show only when party tracking is on.
+- Party members' debuffs show only when party tracking is on, with who landed it: `Slow II (Aria)`.
 
 **Settings window (`/pb`)**
 - Per-job checkboxes to hide buffs, debuffs or recasts.
@@ -39,6 +39,7 @@ An Ashita v4 addon for HorizonXI that shows how much time is left on the buffs *
 - Party tab: main on/off switch, a checkbox per person, and gear boxes per person (e.g. tick **Dilation Ring** for a RDM so their Haste / Refresh get +30s).
 - Theme tab: themes in groups (Default, Glass, Nations, Dark, Simple, Expansions, FFXIV), each with sub-themes. Each theme sets colors and a style: timer bars, box headers, borders (none / thin / thick / double), side stripe, lines between groups, spacing, text size and corner roundness. Tweak any of it, then **Save look** to keep it as your own theme (Custom group). Also background opacity and exact box positions.
 - Option to hide the boxes while the full chat log is open (timers keep running).
+- Click-through option: mouse clicks go through the boxes to the game (`/pb lock`). Boxes can't be dragged while it's on; use the typed X / Y.
 - Profiles: save every setting under a name and load it on another character.
 - Test mode: fake rows so you can place the windows without casting.
 
@@ -91,6 +92,7 @@ Times on other people are always based on your own casts or your saved/estimated
 | `/pb test` | Test mode on / off (fake buffs and recasts) |
 | `/pb party` | Party buff tracking on / off |
 | `/pb debuffs` | Debuff box on / off |
+| `/pb lock` | Click-through on / off (mouse goes through the boxes) |
 | `/pb clear` | Clear all current timers |
 | `/pb hide <buff>` / `/pb show <buff>` | Hide / show a buff |
 | `/pb hide recast <name>` / `/pb show recast <name>` | Hide / show a recast |
@@ -106,6 +108,7 @@ Drag the boxes to move them. Their spots are saved.
 ## Files
 
 - `personalbuffs.lua` – the addon.
+- `debuffs.lua` – Debuff box tracking (debuffs on mobs).
 - `durations.lua` – base buff times by spell ID (from LandSandBoat).
 - `jobdata.lua` – which job gets each spell / ability at level 75 (from LandSandBoat `spell_list.sql` / `abilities.sql`).
 
