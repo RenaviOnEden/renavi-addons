@@ -3,7 +3,7 @@
 An Ashita v4 addon for HorizonXI that shows how much time is left on the buffs **you** cast — on yourself and on others — the debuffs you put on mobs, plus your own ability and spell recasts.
 
 - **Author:** Renavi
-- **Version:** 1.2.2
+- **Version:** 1.3.0
 - **Ashita:** v4 (HorizonXI launcher)
 
 > Code written with Claude (AI) at my direction. I tested it in game and maintain it.
@@ -26,7 +26,8 @@ An Ashita v4 addon for HorizonXI that shows how much time is left on the buffs *
 - Your own ability and spell recasts, read from your client. Shows "Ready" for 5 seconds when one comes off cooldown.
 
 **Debuff box**
-- Debuffs you put on mobs, one section per mob. Your target is listed first.
+- Debuffs you put on mobs, one section per mob. Your target is listed first. Click a mob's name to fold its debuffs away.
+- AoE debuffs (landing on 2 or more mobs at once, like Sleepga or Horde Lullaby) show as one row per spell at the top: `Horde Lullaby (4)` with the lowest timer. Click it to see each mob.
 - Covers spells (Dia / Bio, Helix, blue magic...), weapon skills, Shield Bash / Weapon Bash, Light Shot, blood pacts, jug pet and automaton moves, and weapon procs.
 - A debuff ends early when the game says it wore off or the mob dies. Cleared when you zone.
 - Times are base times (no gear). On by default; turn off with `/pb debuffs`.

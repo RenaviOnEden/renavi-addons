@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.3.0
+
+**New**
+- Debuff box: AoE debuffs (the same debuff landing on 2 or more mobs at once, like Sleepga or Horde Lullaby) show as one row per spell, e.g. `Horde Lullaby (4)`, with the lowest timer. Click the row to see each mob. A mob drops off when it wakes up.
+- Debuff box: mob names always show the mob's ID, like `Goblin Smithy (1A3)` (was only when two mobs had the same name).
+- Debuff box: click a mob's name to fold its debuffs away (the name stays, with how many it has). Click again to show them.
+
 ## 1.2.2
 
 **New**

@@ -373,6 +373,8 @@ function M.handle_action(e)
         srcKey, srcGroup = DB_PETS[param].n, 'Pets'
     end
 
+    local touched = {}   -- debuffs set by this action (to spot AoE)
+
     -- One result on one target.
     local function one(r)
         if r.tid == actor or is_player(r.tid) or pets[r.tid] then return end
@@ -391,8 +393,10 @@ function M.handle_action(e)
                 M.mobs[r.tid] = mob
             end
             label = label or effect_name(fx)
-            mob.fx[fx] = { label = label, exp = now + secs, dur = secs, caster = caster,
-                           key = key or srcKey, group = group or srcGroup }
+            local rec = { label = label, exp = now + secs, dur = secs, caster = caster,
+                          key = key or srcKey, group = group or srcGroup }
+            mob.fx[fx] = rec
+            touched[#touched + 1] = { mob = r.tid, fx = fx, rec = rec }
             dlog(label .. ' on ' .. mob.name .. ': ' .. mmss(secs))
         end
         local function set_all(d, label)
@@ -461,6 +465,20 @@ function M.handle_action(e)
     end
 
     for _, r in ipairs(results) do one(r) end
+
+    -- AoE: the same debuff landing on 2 or more mobs in one action is
+    -- marked so the box shows it as one row for the spell, not per mob.
+    local mobsPer = {}
+    for _, t in ipairs(touched) do
+        local k = t.rec.label .. '|' .. t.fx
+        mobsPer[k] = mobsPer[k] or {}
+        mobsPer[k][t.mob] = true
+    end
+    for _, t in ipairs(touched) do
+        local n = 0
+        for _ in pairs(mobsPer[t.rec.label .. '|' .. t.fx]) do n = n + 1 end
+        t.rec.aoe = n >= 2 or nil
+    end
 end
 
 -- Packet 0x029: "wears off" and "defeated" messages.

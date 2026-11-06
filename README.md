@@ -7,7 +7,7 @@ Two Ashita v4 addons for HorizonXI by Renavi. They share the same themes, and ea
 
 | Addon | Version | Command | Folder |
 |---|---|---|---|
-| **PersonalBuffs** | 1.2.2 | `/pb` | [`personalbuffs/`](personalbuffs) |
+| **PersonalBuffs** | 1.3.0 | `/pb` | [`personalbuffs/`](personalbuffs) |
 | **PersonalHud** | 1.0 | `/phud` | [`personalhud/`](personalhud) |
 
 ### PersonalBuffs

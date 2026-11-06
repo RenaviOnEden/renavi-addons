@@ -28,7 +28,7 @@
 ----------------------------------------------------------------------
 addon.name    = 'personalbuffs'
 addon.author  = 'Renavi'
-addon.version = '1.2.2'
+addon.version = '1.3.0'
 addon.desc    = 'Shows time left on buffs you give to yourself and others.'
 addon.link    = 'https://github.com/RenaviOnEden/personalbuffs'
 
@@ -637,8 +637,15 @@ local function build_test()
     end
     local debuffs = T{
         [1] = mob('Goblin Smithy', true, { { 'Slow II', 150, 180, 'White Magic' }, { 'Paralyze', 40, 120, 'White Magic' }, { 'Dia II', 12, 120, 'White Magic' } }),
-        [2] = mob('Goblin Mugger', false, { { 'Sleep', 25, 60, 'Black Magic' }, { 'Carnage Elegy', 170, 216, 'Songs', 'Aria' } }),
+        [2] = mob('Goblin Mugger', false, { { 'Carnage Elegy', 170, 216, 'Songs', 'Aria' } }),
+        [3] = mob('Goblin Pathfinder', false, {}),
     }
+    debuffs[1].index, debuffs[2].index, debuffs[3].index = 0x1A3, 0x1A4, 0x1B0
+    -- AoE example: Horde Lullaby on three mobs (one row, click it for each mob).
+    for id, left in pairs({ [1] = 21, [2] = 24, [3] = 24 }) do
+        debuffs[id].fx[99] = { label = 'Horde Lullaby', exp = now + left, dur = 30,
+                               key = 'Horde Lullaby', group = 'Songs', aoe = true }
+    end
     test = { timers = t, party = party, recasts = recasts, debuffs = debuffs, start = os.time() }
 end
 
@@ -1742,10 +1749,21 @@ local function draw_debuffs(now, partyOn)
         tgtIdx = t:GetTargetIndex(t:GetIsSubTargetActive())
     end)
 
+    -- Mob name with its ID (the mob's index, in hex), e.g. "Goblin Smithy (1A3)".
+    local function mob_title(mob)
+        if mob.index ~= nil then
+            return mob.name .. string.format(' (%03X)', mob.index)
+        end
+        return mob.name
+    end
+
     -- Build what to show (party members' debuffs only while party is on).
-    local list  = T{}
+    -- AoE debuffs (landed on 2+ mobs at once) go in one row per spell;
+    -- everything else is listed under its mob.
+    local list  = T{}     -- mob sections
+    local aoe   = {}      -- [shown name] = { shown, entries = { { who, exp, dur } } }
+    local aoeList = T{}
     local width = NAME_WIDTH
-    local names = {}
     for id, mob in pairs(mobs) do
         local rows = T{}
         for _, d in pairs(mob.fx) do
@@ -1757,8 +1775,18 @@ local function draw_debuffs(now, partyOn)
                 -- Someone else's debuff shows who landed it: "Slow II (Aria)".
                 d.shown = d.label
                 if d.caster ~= nil then d.shown = d.label .. ' (' .. cut(d.caster, 12) .. ')' end
-                rows:append(d)
-                if #d.shown > width then width = #d.shown end
+                if d.aoe then
+                    local a = aoe[d.shown]
+                    if a == nil then
+                        a = { shown = d.shown, entries = T{} }
+                        aoe[d.shown] = a
+                        aoeList:append(a)
+                    end
+                    a.entries:append({ who = mob_title(mob), exp = d.exp, dur = d.dur })
+                else
+                    rows:append(d)
+                    if #d.shown > width then width = #d.shown end
+                end
             end
         end
         if #rows > 0 then
@@ -1767,11 +1795,25 @@ local function draw_debuffs(now, partyOn)
                 return a.label < b.label
             end)
             local isTarget = mob.test or (mob.index ~= nil and mob.index == tgtIdx)
-            list:append({ id = id, name = mob.name, index = mob.index, target = isTarget, rows = rows })
-            names[mob.name] = (names[mob.name] or 0) + 1
+            list:append({ id = id, name = mob.name, index = mob.index, title = mob_title(mob),
+                          target = isTarget, rows = rows })
         end
     end
-    if #list == 0 then return end
+    -- AoE rows: "Horde Lullaby (4)", lowest timer first.
+    for _, a in ipairs(aoeList) do
+        table.sort(a.entries, function (x, y) return x.exp < y.exp end)
+        a.exp, a.dur = a.entries[1].exp, a.entries[1].dur
+        a.label = a.shown .. ' (' .. #a.entries .. ')'
+        if #a.label > width then width = #a.label end
+        for _, e in ipairs(a.entries) do
+            if #e.who + 1 > width then width = #e.who + 1 end
+        end
+    end
+    table.sort(aoeList, function (x, y)
+        if x.exp ~= y.exp then return x.exp < y.exp end
+        return x.shown < y.shown
+    end)
+    if #list == 0 and #aoeList == 0 then return end
     table.sort(list, function (a, b)
         if a.target ~= b.target then return a.target end
         if a.name ~= b.name then return a.name < b.name end
@@ -1783,27 +1825,79 @@ local function draw_debuffs(now, partyOn)
     moveBox.debuff = false
     push_style(true)
 
+    -- One timer line: "name : 0:00" plus its bar.
+    local function timer_line(text, exp, dur, col)
+        local left = exp - now
+        if left < 0 then left = 0 end
+        local x1 = xy(imgui.GetCursorScreenPos())
+        imgui.TextColored(col, string.format('%-' .. width .. 's :', text))
+        imgui.SameLine(0, 6)
+        imgui.TextColored(time_color(left), fmt_time(left, false))
+        timer_bar(dur and dur > 0 and (left / dur) or nil, time_color(left), x1, last_right(x1))
+    end
+
     if imgui.Begin('personalbuffs_debuff', true, config.clickThrough
             and bit.bor(FLAGS, ImGuiWindowFlags_NoInputs or ImGuiWindowFlags_NoMouseInputs or 0) or FLAGS) then
         box_header('Debuffs')
+        DB.open = DB.open or {}   -- [AoE row] = true when its mob list is shown
+        DB.shut = DB.shut or {}   -- [mob ID] = true when its debuffs are folded away
+        for id in pairs(DB.shut) do
+            if mobs[id] == nil then DB.shut[id] = nil end
+        end
+
+        -- True when a row was clicked (press and release on it, not a box drag).
+        local function row_clicked(key, rowTop, rowBottom)
+            local _, my = imgui.GetMousePos()
+            local hovered = imgui.IsWindowHovered() and my >= rowTop and my < rowBottom
+            if hovered and imgui.IsMouseClicked(0) then
+                local wx, wy = imgui.GetWindowPos()
+                press = { name = key, x = wx, y = wy }
+            end
+            if press ~= nil and press.name == key and imgui.IsMouseReleased(0) then
+                local wx, wy = imgui.GetWindowPos()
+                return hovered and wx == press.x and wy == press.y
+            end
+            return false
+        end
+
+        for _, a in ipairs(aoeList) do
+            local key = 'aoe|' .. a.shown
+            local _, rowTop = imgui.GetCursorScreenPos()
+            timer_line(a.label, a.exp, a.dur, COL_NAME)
+            local _, rowBottom = imgui.GetCursorScreenPos()
+
+            -- Click the row to see each mob.
+            if row_clicked(key, rowTop, rowBottom) then
+                DB.open[a.shown] = not DB.open[a.shown] or nil
+            end
+            if DB.open[a.shown] then
+                for _, e in ipairs(a.entries) do
+                    timer_line('   ' .. e.who, e.exp, e.dur, COL_TARGET)
+                end
+            end
+        end
+
         for i, m in ipairs(list) do
-            if i > 1 then group_gap() end
-            -- Two mobs with the same name: add the mob's index so they can be told apart.
-            local title = m.name
-            if names[m.name] > 1 and m.index ~= nil then
-                title = title .. string.format(' (%03X)', m.index)
+            if i > 1 or #aoeList > 0 then group_gap() end
+            -- Click the mob's name to fold its debuffs away (shows how many).
+            local shut = DB.shut[m.id] == true
+            local _, rowTop = imgui.GetCursorScreenPos()
+            imgui.TextColored(m.target and COL_TARGET or COL_ACCENT,
+                shut and (m.title .. ' (' .. #m.rows .. ')') or m.title)
+            local _, rowBottom = imgui.GetCursorScreenPos()
+            if row_clicked('mob|' .. tostring(m.id), rowTop, rowBottom) then
+                DB.shut[m.id] = not shut or nil
             end
-            imgui.TextColored(m.target and COL_TARGET or COL_ACCENT, title)
-            for _, d in ipairs(m.rows) do
-                local left = d.exp - now
-                if left < 0 then left = 0 end
-                local x1 = xy(imgui.GetCursorScreenPos())
-                imgui.TextColored(COL_NAME, string.format('%-' .. width .. 's :', d.shown or d.label))
-                imgui.SameLine(0, 6)
-                imgui.TextColored(time_color(left), fmt_time(left, false))
-                timer_bar(d.dur and d.dur > 0 and (left / d.dur) or nil,
-                          time_color(left), x1, last_right(x1))
+            if not shut then
+                for _, d in ipairs(m.rows) do
+                    timer_line(d.shown or d.label, d.exp, d.dur, COL_NAME)
+                end
             end
+        end
+        -- Clicks in this box are done once the mouse is let go.
+        if imgui.IsMouseReleased(0) and press ~= nil
+                and (press.name:sub(1, 4) == 'aoe|' or press.name:sub(1, 4) == 'mob|') then
+            press = nil
         end
 
         box_end()
