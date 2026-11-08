@@ -28,7 +28,7 @@
 ----------------------------------------------------------------------
 addon.name    = 'personalbuffs'
 addon.author  = 'Renavi'
-addon.version = '1.3.0'
+addon.version = '1.3.1'
 addon.desc    = 'Shows time left on buffs you give to yourself and others.'
 addon.link    = 'https://github.com/RenaviOnEden/personalbuffs'
 
@@ -1524,11 +1524,12 @@ end
 ----------------------------------------------------------------------
 local RECAST_GROUPS = T{ 'Abilities', 'Spells' }
 
+-- HorizonXI swapped NIN's Mijin Gakure for its own Mikage (Apr 2023).
 local TWO_HOURS = {
     [1] = 'Mighty Strikes', [2] = 'Hundred Fists', [3] = 'Benediction', [4] = 'Manafont',
     [5] = 'Chainspell', [6] = 'Perfect Dodge', [7] = 'Invincible', [8] = 'Blood Weapon',
     [9] = 'Familiar', [10] = 'Soul Voice', [11] = 'Eagle Eye Shot', [12] = 'Meikyo Shisui',
-    [13] = 'Mijin Gakure', [14] = 'Spirit Surge', [15] = 'Astral Flow', [16] = 'Azure Lore',
+    [13] = 'Mikage', [14] = 'Spirit Surge', [15] = 'Astral Flow', [16] = 'Azure Lore',
     [17] = 'Wild Card', [18] = 'Overdrive', [19] = 'Trance', [20] = 'Tabula Rasa',
     [21] = 'Bolster', [22] = 'Elemental Sforzo',
 }

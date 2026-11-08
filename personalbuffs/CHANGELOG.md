@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.3.1
+
+**Fixes**
+- NIN 2-hour shows as Mikage (HorizonXI's replacement for Mijin Gakure).
+
 ## 1.3.0
 
 **New**
