@@ -1,5 +1,27 @@
 # Changelog
 
+## 1.4.2
+
+**New**
+- Boxes snap together: drag the Buff, Recast or Debuff box near another one and let go. It snaps to that side and then moves with it. Drag it away, press **Unsnap all**, or type an X / Y to unstick it. Checkbox in the Theme tab's box position section (on by default).
+- New files: `dock.lua` and `snap.lua`.
+
+## 1.4.1
+
+**Changed**
+- Bolder themes: San d'Oria, Bastok, Windurst, High Contrast, Vana'diel, Zilart, Promathia, Aht Urhgan and Goddess were retuned.
+
+## 1.4.0
+
+**New**
+- Right-click to target (optional, **off by default**): right-click a mob's name in the Debuff box, or a person in the Buff box, to target it. Turn on in the settings window or with `/pb targetclick`. All of it is in `clicktarget.lua`, the only file that sends anything (the game's own `/target` command). Delete that file and the option is gone.
+- Text size can go from 80% to 200% (was up to 130%).
+- Error tracker: if a game-memory read fails while reading a packet, the next packet prints a chat line naming the step (for bug reports).
+
+**Fixes**
+- Timers that were close together swapped places every second. Rows are now sorted by the exact timer, with ties by name.
+- Crash while reading action packets: added range checks before game-memory lookups.
+
 ## 1.3.1
 
 **Fixes**

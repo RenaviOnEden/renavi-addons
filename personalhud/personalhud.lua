@@ -2,18 +2,21 @@
 -- PersonalHud (Ashita v4 / HorizonXI)
 --
 -- One small box with your name, jobs, HP, MP, TP and XP (or LP once
--- your XP is capped).
+-- your XP is capped), and a second box for your target (name,
+-- distance, HP and debuff letters).
 --
 -- Looks and settings match PersonalBuffs: same themes, same Style
 -- options, saved custom looks, and a /phud settings window.
 --
 -- Files: personalhud.lua (this), themes.lua (themes, copied from
---        PersonalBuffs so both addons look the same).
+--        PersonalBuffs so both addons look the same), target.lua (the
+--        target bar), debuffs.lua (debuff tracking for the target bar,
+--        copied from PersonalBuffs).
 ----------------------------------------------------------------------
 addon.name    = 'personalhud'
 addon.author  = 'Renavi'
-addon.version = '1.0'
-addon.desc    = 'Shows your HP, MP, TP and XP / LP in a small themed box.'
+addon.version = '1.1.6'
+addon.desc    = 'Shows your HP, MP, TP and XP / LP in a small themed box, plus a target bar.'
 addon.link    = 'https://github.com/RenaviOnEden/renavi-addons'
 
 require('common')
@@ -44,6 +47,33 @@ local defaults = T{
     clickThru    = false,   -- mouse goes through the HUD (can't drag it)
     followPB     = false,   -- copy the theme from PersonalBuffs
     hideFullLog  = true,    -- hide while the full chat log is open
+
+    target       = true,    -- target bar on / off
+    tx           = 100,     -- target bar position
+    ty           = 220,
+    tgtDist      = true,    -- distance to the target (right of the HP bar)
+    tgtBarPct    = 70,      -- HP bar length, % of the box, while the distance shows
+    tgtDistSize  = 140,     -- distance text size, % of normal
+    tgtDimPct    = 55,      -- brightness of debuff letters that aren't on (%)
+    tgtId        = true,    -- mob ID after the name, like "Goblin Smithy (1A3)"
+    tgtColors    = true,    -- name color by type (player, NPC, mob claim)
+    tgtDebuffs   = true,    -- debuff letters (reads packets 0x028 / 0x029)
+    tSnapOn      = true,    -- target bar snaps to the HUD when dragged near it
+    tSnap        = '',      -- side it's stuck to: 'below', 'above', 'left', 'right' or '' (none)
+    tSnapOff     = 0,       -- offset along that side, in pixels
+    tSnapEnd     = false,   -- lined up with the far edge (right or bottom) instead
+    tSnapTo      = 'hud',   -- box it's stuck to: 'hud', or a split box ('head', 'hp', ...)
+
+    split        = false,   -- split HUD: name, HP, MP, TP and XP each in their own box
+    -- Split boxes: position, and what each one is stuck to (to / side / off / e).
+    -- The name box uses x / y above for its position.
+    parts        = T{
+        head = T{ x = 100, y = 100, to = '',     side = '',      off = 0, e = false },
+        hp   = T{ x = 100, y = 130, to = 'head', side = 'below', off = 0, e = false },
+        mp   = T{ x = 100, y = 155, to = 'hp',   side = 'below', off = 0, e = false },
+        tp   = T{ x = 100, y = 180, to = 'mp',   side = 'below', off = 0, e = false },
+        xp   = T{ x = 100, y = 205, to = 'tp',   side = 'below', off = 0, e = false },
+    },
 }
 local config = settings.load(defaults)
 
@@ -220,7 +250,7 @@ end
 
 local fontPushed = false
 local function box_scale()
-    local sc = clamp(S('scale'), 80, 130, 100) / 100
+    local sc = clamp(S('scale'), 80, 200, 100) / 100
     if has('SetWindowFontScale') then
         pcall(imgui.SetWindowFontScale, sc)
         return
@@ -307,14 +337,39 @@ local function pop_style()
     imgui.PopStyleColor(t[1])
 end
 
--- Number control: a slider when available, else - / + buttons.
+local function item_done()
+    if imgui.IsItemDeactivatedAfterEdit ~= nil then return imgui.IsItemDeactivatedAfterEdit() end
+    if imgui.IsItemEdited ~= nil then return imgui.IsItemEdited() end
+    return false
+end
+
+-- Number control: a slider plus a box to type the number in, when available;
+-- else - / + buttons. Returns changed, done (done = let go / typed, time to save).
 local function int_control(label, v, lo, hi, fmt)
-    if has('SliderInt') then
-        return imgui.SliderInt(label, v, lo, hi, fmt or '%d')
-    end
-    local changed = false
     local id = label:match('##(.*)$') or label
     local shown = label:gsub('##.*$', '')
+    if has('SliderInt') then
+        local changed = imgui.SliderInt('##sl' .. id, v, lo, hi, fmt or '%d')
+        local done = item_done()
+        if has('InputInt') then
+            imgui.SameLine(0, 6)
+            if has('PushItemWidth') then imgui.PushItemWidth(48) end
+            local typed = { v[1] }
+            if imgui.InputInt('##in' .. id, typed, 0, 0) then
+                local n = math.floor(tonumber(typed[1]) or v[1])
+                if n < lo then n = lo elseif n > hi then n = hi end
+                if n ~= v[1] then v[1] = n; changed = true end
+            end
+            if item_done() then done = true end
+            if has('PopItemWidth') then imgui.PopItemWidth() end
+        end
+        if shown ~= '' then
+            imgui.SameLine(0, 8)
+            imgui.TextColored(COL_NAME, shown)
+        end
+        return changed, done
+    end
+    local changed = false
     if imgui.SmallButton(' - ##m' .. id) and v[1] > lo then v[1] = v[1] - 1; changed = true end
     imgui.SameLine(0, 4)
     imgui.TextColored(COL_NAME, (string.format(fmt or '%d', v[1])))
@@ -322,17 +377,11 @@ local function int_control(label, v, lo, hi, fmt)
     if imgui.SmallButton(' + ##p' .. id) and v[1] < hi then v[1] = v[1] + 1; changed = true end
     imgui.SameLine(0, 8)
     imgui.TextColored(COL_NAME, shown)
-    return changed
+    return changed, changed
 end
 
 local function width_push(w) if has('PushItemWidth') then imgui.PushItemWidth(w) end end
 local function width_pop() if has('PushItemWidth') and has('PopItemWidth') then imgui.PopItemWidth() end end
-
-local function item_done()
-    if imgui.IsItemDeactivatedAfterEdit ~= nil then return imgui.IsItemDeactivatedAfterEdit() end
-    if imgui.IsItemEdited ~= nil then return imgui.IsItemEdited() end
-    return false
-end
 
 -- A button that looks "pressed" when selected.
 local function pick_button(label, selected, width)
@@ -343,6 +392,11 @@ local function pick_button(label, selected, width)
 end
 
 local moveHud    = false      -- position typed in the menu: move on next draw
+-- Shared with the target bar and split boxes: where each box is this frame
+-- (rects.hud, or rects.head / hp / ... in split mode, each { x, y, w, h }),
+-- last frame's spots (prev), and the width the target bar's debuff letters
+-- need, so all boxes stay the same width.
+local share      = { rects = {}, prev = {}, minW = 0 }
 local showConfig = { false }
 
 ----------------------------------------------------------------------
@@ -453,23 +507,12 @@ local function bar_colors()
     return CLASSIC
 end
 
--- One row: "HP  1156" then the bar.
-local function draw_row(label, value, valueCol, cur, max, barCol, bgCol, overlay, numW, barH)
-    local frac = (max > 0) and (cur / max) or 0
-    if frac < 0 then frac = 0 elseif frac > 1 then frac = 1 end
-
-    local x0 = imgui.GetCursorPosX()
-    imgui.TextColored(COL_NAME, label)
-    imgui.SameLine(0, 0)
-    local v = tostring(value)
-    imgui.SetCursorPosX(x0 + numW - text_w(v))
-    imgui.TextColored(valueCol, v)
-    imgui.SameLine(0, 8)
-
+-- A bar, with optional text centered on it.
+local function draw_bar(frac, width, barH, barCol, bgCol, overlay)
     imgui.PushStyleColor(ImGuiCol_PlotHistogram, barCol)
     imgui.PushStyleColor(ImGuiCol_FrameBg, bgCol)
     imgui.PushStyleColor(ImGuiCol_Text, COL_NAME)
-    imgui.ProgressBar(frac, { config.barWidth, barH }, '')
+    imgui.ProgressBar(frac, { width, barH }, '')
     imgui.PopStyleColor(3)
 
     -- The % is drawn here, always centered on the bar (the game's own bar
@@ -509,11 +552,124 @@ local function draw_row(label, value, valueCol, cur, max, barCol, bgCol, overlay
     end
 end
 
+-- One row: "HP  1156" then the bar.
+local function draw_row(label, value, valueCol, cur, max, barCol, bgCol, overlay, numW, barH, barW)
+    local frac = (max > 0) and (cur / max) or 0
+    if frac < 0 then frac = 0 elseif frac > 1 then frac = 1 end
+
+    local x0 = imgui.GetCursorPosX()
+    imgui.TextColored(COL_NAME, label)
+    imgui.SameLine(0, 0)
+    local v = tostring(value)
+    imgui.SetCursorPosX(x0 + numW - text_w(v))
+    imgui.TextColored(valueCol, v)
+    imgui.SameLine(0, 8)
+    draw_bar(frac, barW or config.barWidth, barH, barCol, bgCol, overlay)
+end
+
+-- Which pieces show: 'head' (name / TNL / jobs), 'hp', 'mp', 'tp', 'xp'.
+local function part_shown(d, k)
+    -- Split mode always keeps the MP box (shows 0 on jobs with no MP).
+    if k == 'mp' then return config.split or not (config.hideNoMP and d.mpMax <= 0) end
+    if k == 'tp' then return config.showTP == true end
+    if k == 'xp' then return config.showXP == true end
+    return true
+end
+
+-- The HUD's insides: all of it (which = nil) or one piece (split mode).
+-- Called inside a window, after box_scale().
+local function hud_content(d, which)
+    local function want(k) return which == k or (which == nil and part_shown(d, k)) end
+    local col = bar_colors()
+
+    -- Sizes follow the text size.
+    local lineH = has('GetTextLineHeight') and imgui.GetTextLineHeight() or 14
+    local barH  = math.max(4, math.floor(lineH * clamp(config.barHeight, 50, 150, 100) / 100 + 0.5))
+    local numW  = text_w('LP 00000')
+    local total = numW + 8 + config.barWidth
+    -- Wider bars if the target bar's letters need more room, so all match.
+    local barW  = config.barWidth
+    local extra = math.floor((tonumber(share.minW) or 0) - total + 0.5)
+    if extra > 0 then barW, total = barW + extra, total + extra end
+    local x0    = imgui.GetCursorPosX()
+
+    if which == nil or which == 'head' then
+        -- Header: name on the left, jobs on the right.
+        local jobs = job_abbr(d.job) .. d.lvl
+        if d.sub ~= nil and d.sub ~= 0 then jobs = jobs .. '/' .. job_abbr(d.sub) .. d.slvl end
+        imgui.TextColored(COL_NAME, d.name)
+
+        -- XP to next level (TNL) or LP to next merit (TNM), in the header.
+        if config.showXP and d.xpMax > 0 then
+            local left = d.xpMax - d.xp
+            if left < 0 then left = 0 end
+            local tnl = fmt_num(left) .. (d.limit and ' TNM' or ' TNL')
+            local tw  = text_w(tnl)
+            -- Free room between the name and the jobs (6 px gap each side).
+            local lo = x0 + text_w(d.name) + 6
+            local hi = x0 + total - text_w(jobs) - 6 - tw
+            -- Centered when that fits; otherwise slid into the free room.
+            -- Hidden only when the room is too small for the text.
+            if hi >= lo then
+                local tx = x0 + (total - tw) / 2
+                if tx < lo then tx = lo elseif tx > hi then tx = hi end
+                imgui.SameLine(0, 0)
+                imgui.SetCursorPosX(math.floor(tx + 0.5))
+                imgui.TextColored(COL_TARGET, tnl)
+            end
+        end
+
+        imgui.SameLine(0, 0)
+        imgui.SetCursorPosX(x0 + total - text_w(jobs))
+        imgui.TextColored(S('header') and COL_ACCENT or COL_NAME, jobs)
+        if which == nil then
+            if S('header') then line(COL_ACCENT) elseif S('dividers') then line(COL_BORDER) end
+        end
+    end
+
+    -- "62%" for the bars (blank when there's no max, e.g. no MP).
+    local function pct(cur, max)
+        if max == nil or max <= 0 then return '' end
+        local n = math.floor(cur / max * 100)
+        if n < 0 then n = 0 elseif n > 100 then n = 100 end
+        return n .. '%'
+    end
+
+    if want('hp') then
+        draw_row('HP', d.hp, warn_color(d.hp, d.hpMax), d.hp, d.hpMax, col.hp, col.barBg, pct(d.hp, d.hpMax), numW, barH, barW)
+    end
+    if want('mp') then
+        draw_row('MP', d.mp, warn_color(d.mp, d.mpMax), d.mp, d.mpMax, col.mp, col.barBg, pct(d.mp, d.mpMax), numW, barH, barW)
+    end
+    if want('tp') then
+        local active = d.tp >= 1000
+        draw_row('TP', d.tp, active and col.tpActive or COL_NAME, d.tp, 3000,
+                 active and col.tpActive or col.tp, col.barBg, '', numW, barH, barW)
+    end
+    if want('xp') then
+        local p = (d.xpMax > 0) and math.floor(d.xp / d.xpMax * 100) or 0
+        if p > 100 then p = 100 end
+        draw_row(d.limit and 'LP' or 'XP', fmt_num(d.xp), COL_NAME, d.xp, d.xpMax,
+                 d.limit and col.lp or col.xp, col.barBg, p .. '%', numW, barH, barW)
+    end
+end
+
+local SPLIT = require('split')
+
 local function draw_hud()
+    share.prev  = share.rects
+    share.rects = {}
     if not config.visible then return end
     if config.hideFullLog and full_log_open() then return end
     local ok, d = pcall(read_player)
     if not ok or d == nil then return end
+
+    -- Split mode: each piece in its own box (split.lua).
+    if config.split then
+        SPLIT.draw(d, moveHud)
+        moveHud = false
+        return
+    end
 
     local flags = FLAGS
     if config.clickThru then flags = bit.bor(flags, ImGuiWindowFlags_NoInputs) end
@@ -524,69 +680,13 @@ local function draw_hud()
 
     if imgui.Begin('personalhud', true, flags) then
         box_scale()
-        local col = bar_colors()
-
-        -- Sizes follow the text size.
-        local lineH = has('GetTextLineHeight') and imgui.GetTextLineHeight() or 14
-        local barH  = math.max(4, math.floor(lineH * clamp(config.barHeight, 50, 150, 100) / 100 + 0.5))
-        local numW  = text_w('LP 00000')
-        local total = numW + 8 + config.barWidth
-        local x0    = imgui.GetCursorPosX()
-
-        -- Header: name on the left, jobs on the right.
-        local jobs = job_abbr(d.job) .. d.lvl
-        if d.sub ~= nil and d.sub ~= 0 then jobs = jobs .. '/' .. job_abbr(d.sub) .. d.slvl end
-        imgui.TextColored(COL_NAME, d.name)
-
-        -- XP to next level (or LP to next merit), centered in the header.
-        if config.showXP and d.xpMax > 0 then
-            local left = d.xpMax - d.xp
-            if left < 0 then left = 0 end
-            local tnl = d.limit and (fmt_num(left) .. ' to merit') or (fmt_num(left) .. ' TNL')
-            local nameEnd = x0 + text_w(d.name)
-            local jobsAt  = x0 + total - text_w(jobs)
-            local tx = math.floor(x0 + (total - text_w(tnl)) / 2 + 0.5)
-            -- Only if it fits between the name and jobs.
-            if tx > nameEnd + 6 and tx + text_w(tnl) < jobsAt - 6 then
-                imgui.SameLine(0, 0)
-                imgui.SetCursorPosX(tx)
-                imgui.TextColored(COL_TARGET, tnl)
-            end
-        end
-
-        imgui.SameLine(0, 0)
-        imgui.SetCursorPosX(x0 + total - text_w(jobs))
-        imgui.TextColored(S('header') and COL_ACCENT or COL_NAME, jobs)
-        if S('header') then line(COL_ACCENT) elseif S('dividers') then line(COL_BORDER) end
-
-        -- "62%" for the bars (blank when there's no max, e.g. no MP).
-        local function pct(cur, max)
-            if max == nil or max <= 0 then return '' end
-            local n = math.floor(cur / max * 100)
-            if n < 0 then n = 0 elseif n > 100 then n = 100 end
-            return n .. '%'
-        end
-
-        draw_row('HP', d.hp, warn_color(d.hp, d.hpMax), d.hp, d.hpMax, col.hp, col.barBg, pct(d.hp, d.hpMax), numW, barH)
-        if not (config.hideNoMP and d.mpMax <= 0) then
-            draw_row('MP', d.mp, warn_color(d.mp, d.mpMax), d.mp, d.mpMax, col.mp, col.barBg, pct(d.mp, d.mpMax), numW, barH)
-        end
-        if config.showTP then
-            local active = d.tp >= 1000
-            draw_row('TP', d.tp, active and col.tpActive or COL_NAME, d.tp, 3000,
-                     active and col.tpActive or col.tp, col.barBg, '', numW, barH)
-        end
-        if config.showXP then
-            local pct = (d.xpMax > 0) and math.floor(d.xp / d.xpMax * 100) or 0
-            if pct > 100 then pct = 100 end
-            draw_row(d.limit and 'LP' or 'XP', fmt_num(d.xp), COL_NAME, d.xp, d.xpMax,
-                     d.limit and col.lp or col.xp, col.barBg, pct .. '%', numW, barH)
-        end
-
+        hud_content(d, nil)
         box_end()
 
         -- Remember where the box was dragged to.
         local x, y = xy(imgui.GetWindowPos())
+        local w, h = xy(imgui.GetWindowSize())
+        share.rects.hud = { x, y, w, h }
         if (x ~= config.x or y ~= config.y) and not imgui.IsMouseDown(0) then
             config.x, config.y = x, y
             settings.save()
@@ -595,6 +695,46 @@ local function draw_hud()
     imgui.End()
     pop_style()
 end
+
+SPLIT.setup({
+    cfg  = function () return config end,
+    save = function () settings.save() end,
+    rects = function () return share.rects end,
+    prev  = function () return share.prev end,
+    FLAGS = FLAGS, xy = xy, has = has, push_style = push_style, pop_style = pop_style,
+    box_scale = box_scale, box_end = box_end, hud_content = hud_content, part_shown = part_shown,
+})
+
+-- The box a snapped target bar follows. In split mode "the HUD" means the
+-- XP box (or the box above it when XP is hidden); in normal mode any
+-- split box means the whole HUD.
+local function snap_rect(key)
+    if key == nil or key == '' then return nil end
+    if config.split then
+        if key == 'hud' then key = 'xp' end
+        return SPLIT.rect_for(key)
+    end
+    return share.rects.hud
+end
+
+----------------------------------------------------------------------
+-- Target bar (its own file: target.lua)
+----------------------------------------------------------------------
+local TG = require('target')
+TG.setup({
+    cfg  = function () return config end,   -- config can be swapped by the settings library
+    save = function () settings.save() end,
+    COL_NAME = COL_NAME, COL_GREEN = COL_GREEN, COL_YELLOW = COL_YELLOW, COL_RED = COL_RED,
+    COL_ACCENT = COL_ACCENT, COL_BORDER = COL_BORDER,
+    FLAGS = FLAGS, S = S, clamp = clamp, xy = xy, has = has, text_w = text_w, line = line,
+    push_style = push_style, pop_style = pop_style, box_scale = box_scale, box_end = box_end,
+    bar_colors = bar_colors, draw_bar = draw_bar, full_log_open = full_log_open,
+    snap_rect = snap_rect,
+    rects     = function () return share.rects end,
+    part_name = function (k) return SPLIT.NAMES[k] end,
+    set_min_w = function (w) share.minW = w or 0 end,
+    int_control = int_control, width_push = width_push, width_pop = width_pop,
+})
 
 ----------------------------------------------------------------------
 -- Themes (same as PersonalBuffs)
@@ -709,21 +849,27 @@ end
 local function slider(label, key, lo, hi, def, fmt)
     local v = { math.floor(clamp(config[key], lo, hi, def) + 0.5) }
     width_push(160)
-    if int_control(label .. '##cfg_' .. key, v, lo, hi, fmt) then
-        config[key] = v[1]
-        if not has('SliderInt') then settings.save() end
-    end
-    local done = has('SliderInt') and item_done()
+    local changed, done = int_control(label .. '##cfg_' .. key, v, lo, hi, fmt)
+    if changed then config[key] = v[1] end
     width_pop()
     if done then settings.save() end
 end
 
+TG.slider = slider   -- the Target tab uses the same slider
+
 local function draw_bars_tab()
     check('Show the HUD', 'visible')
+    check('Split HUD (name, HP, MP, TP and XP each in their own box)', 'split')
+    if config.split then
+        imgui.TextColored(COL_NAME, 'Drag a box near another to snap it; it then moves with it.')
+        imgui.TextColored(COL_NAME, 'Drag it away to unstick it.')
+        if imgui.Button('Re-stack the boxes##phrestack') then SPLIT.restack() end
+        imgui.Dummy({ 0, 4 })
+    end
     check('TP bar', 'showTP')
     imgui.SameLine(0, 16)
     check('XP / LP bar', 'showXP')
-    check('Hide the MP bar on jobs with no MP', 'hideNoMP')
+    check('Hide the MP bar on jobs with no MP (not in split mode)', 'hideNoMP')
     check('Low HP / MP numbers change color', 'warnColors')
     check('Click through (mouse goes through the HUD, can\'t drag it)', 'clickThru')
     check('Hide while the full chat log is open', 'hideFullLog')
@@ -746,7 +892,7 @@ local function draw_bars_tab()
 
     -- HUD position: type a number or use - / + (Ctrl + click moves 10).
     imgui.Dummy({ 0, 4 })
-    imgui.TextColored(COL_ACCENT, 'HUD position')
+    imgui.TextColored(COL_ACCENT, config.split and 'Name box position' or 'HUD position')
     imgui.TextColored(COL_NAME, 'Type a number or use - / +. Ctrl + click moves 10.')
     for i, k in ipairs({ 'x', 'y' }) do
         if i > 1 then imgui.SameLine(0, 12) end
@@ -767,7 +913,36 @@ local function draw_bars_tab()
     end
 end
 
+-- Copies PersonalBuffs' look (theme, style tweaks, opacity) into the HUD's
+-- own settings one time. Matching is turned off, so you can change it after.
+local pbCopyMsg = nil
+local function copy_pb()
+    local look = read_pb()
+    if look == nil then return false end
+    config.followPB     = false
+    config.theme        = find_theme(look.theme) and look.theme or 'Default'
+    config.style        = T{}
+    for k, v in pairs(look.style) do config.style[k] = v end
+    config.opacity      = look.opacity
+    config.activeCustom = nil
+    settings.save()
+    selFamily = nil
+    return true
+end
+
 local function draw_theme_tab()
+    -- One-time copy of PersonalBuffs' look.
+    if imgui.SmallButton('Copy PersonalBuffs\' look##pbcopy') then
+        pbCopyMsg = copy_pb() and 'Copied. Change anything you like below.'
+            or 'PersonalBuffs settings not found. Load PersonalBuffs once on this character.'
+    end
+    if pbCopyMsg ~= nil then
+        imgui.SameLine(0, 8)
+        imgui.TextColored(COL_ACCENT, pbCopyMsg)
+    end
+    imgui.TextColored(COL_NAME, 'Copy = take its look once, then change it here.')
+    imgui.TextColored(COL_NAME, 'Match = always follow it (no changes here).')
+
     -- Match PersonalBuffs switch.
     local fv = { config.followPB == true }
     if imgui.Checkbox('Match PersonalBuffs##follow', fv) then
@@ -895,11 +1070,8 @@ local function draw_theme_tab()
         local function sslider(label, key, lo, hi, def, fmt)
             local v = { math.floor(clamp(S(key), lo, hi, def) + 0.5) }
             width_push(160)
-            if int_control(label .. '##st_' .. key, v, lo, hi, fmt) then
-                config.style[key] = v[1]
-                if not has('SliderInt') then settings.save() end
-            end
-            local done = has('SliderInt') and item_done()
+            local changed, done = int_control(label .. '##st_' .. key, v, lo, hi, fmt)
+            if changed then config.style[key] = v[1] end
             width_pop()
             if done then settings.save() end
         end
@@ -912,7 +1084,7 @@ local function draw_theme_tab()
         choice('Spacing', 'spacing', { { 'compact', 'Compact' }, { 'normal', 'Normal' },
                                        { 'roomy', 'Roomy' } })
         sslider('Side stripe', 'stripe', 0, 6, 0, '%d px')
-        if can_scale() then sslider('Text size', 'scale', 80, 130, 100, '%d%%') end
+        if can_scale() then sslider('Text size', 'scale', 80, 200, 100, '%d%%') end
         sslider('Corner roundness', 'rounding', 0, 12, 6)
 
         -- Background opacity. 0 means "use the theme's own".
@@ -920,11 +1092,8 @@ local function draw_theme_tab()
         local cur  = tonumber(config.opacity) or 0
         local ov   = { cur > 0 and cur or math.floor(thBg * 100 + 0.5) }
         width_push(160)
-        if int_control('Background opacity##opac', ov, 10, 100, '%d%%') then
-            config.opacity = ov[1]
-            if not has('SliderInt') then settings.save() end
-        end
-        local opDone = has('SliderInt') and item_done()
+        local opChanged, opDone = int_control('Background opacity##opac', ov, 10, 100, '%d%%')
+        if opChanged then config.opacity = ov[1] end
         width_pop()
         if opDone then settings.save() end
         imgui.SameLine(0, 8)
@@ -1047,6 +1216,7 @@ local function profile_load(name)
     -- Redraw with the new settings.
     appliedTheme = nil
     moveHud      = true
+    TG.move      = true
     pbAt         = -100
     selFamily    = nil
     return true, name
@@ -1124,12 +1294,15 @@ local function draw_config()
     if imgui.Begin('PersonalHud##phconfig', showConfig, ImGuiWindowFlags_NoCollapse) then
         if pick_button('Bars##tabb', selTab == 'Bars', 62) then selTab = 'Bars' end
         imgui.SameLine(0, 4)
+        if pick_button('Target##tabg', selTab == 'Target', 62) then selTab = 'Target' end
+        imgui.SameLine(0, 4)
         if pick_button('Theme##tabt', selTab == 'Theme', 62) then selTab = 'Theme' end
         imgui.SameLine(0, 4)
         if pick_button('Profiles##tabp', selTab == 'Profiles', 62) then selTab = 'Profiles' end
         imgui.Dummy({ 0, 4 })
 
         if selTab == 'Theme' then draw_theme_tab()
+        elseif selTab == 'Target' then TG.draw_tab()
         elseif selTab == 'Profiles' then draw_profiles_tab()
         else draw_bars_tab() end
     end
@@ -1151,6 +1324,7 @@ ashita.events.register('d3d_present', 'phud_present', function ()
     end
     draw_config()
     draw_hud()
+    TG.draw()
 end)
 
 ----------------------------------------------------------------------
@@ -1182,6 +1356,18 @@ ashita.events.register('command', 'phud_command', function (e)
         return
     end
 
+    -- /phud target turns the target bar on / off.
+    if cmd == 'target' then
+        msg('Target bar: ' .. (TG.toggle() and 'shown' or 'hidden'))
+        return
+    end
+
+    -- /phud test turns target bar test mode on / off (fake target, letters lit).
+    if cmd == 'test' then
+        msg('Target test mode: ' .. (TG.toggle_test() and 'on' or 'off'))
+        return
+    end
+
     -- /phud profile save|load|delete <name>, /phud profile list
     if cmd == 'profile' or cmd == 'profiles' then
         local sub  = (args[3] or 'list'):lower()
@@ -1207,6 +1393,13 @@ ashita.events.register('command', 'phud_command', function (e)
     if cmd == 'menu' then
         local n = menu_name()
         msg('Open menu: ' .. (n ~= '' and ('"' .. n .. '"') or '(none)'))
+        return
+    end
+
+    -- /phud copy takes PersonalBuffs' look once (and turns matching off).
+    if cmd == 'copy' then
+        msg(copy_pb() and ('Copied PersonalBuffs\' look: ' .. config.theme .. '. Change it in /phud.')
+            or 'PersonalBuffs settings not found. Load PersonalBuffs once on this character.')
         return
     end
 
@@ -1253,7 +1446,7 @@ ashita.events.register('command', 'phud_command', function (e)
         return
     end
 
-    msg('Commands: /phud (settings window), /phud toggle, /phud show, /phud hide, /phud theme [name], /phud match, /phud profile save|load|delete|list [name]')
+    msg('Commands: /phud (settings window), /phud toggle, /phud show, /phud hide, /phud target, /phud test, /phud theme [name], /phud copy, /phud match, /phud profile save|load|delete|list [name]')
 end)
 
 ashita.events.register('unload', 'phud_unload', function ()

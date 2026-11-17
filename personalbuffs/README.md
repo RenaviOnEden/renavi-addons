@@ -3,7 +3,7 @@
 An Ashita v4 addon for HorizonXI that shows how much time is left on the buffs **you** cast — on yourself and on others — the debuffs you put on mobs, plus your own ability and spell recasts.
 
 - **Author:** Renavi
-- **Version:** 1.3.1
+- **Version:** 1.4.2
 - **Ashita:** v4 (HorizonXI launcher)
 
 > Code written with Claude (AI) at my direction. I tested it in game and maintain it.
@@ -41,8 +41,18 @@ An Ashita v4 addon for HorizonXI that shows how much time is left on the buffs *
 - Theme tab: themes in groups (Default, Glass, Nations, Dark, Simple, Expansions, FFXIV), each with sub-themes. Each theme sets colors and a style: timer bars, box headers, borders (none / thin / thick / double), side stripe, lines between groups, spacing, text size and corner roundness. Tweak any of it, then **Save look** to keep it as your own theme (Custom group). Also background opacity and exact box positions.
 - Option to hide the boxes while the full chat log is open (timers keep running).
 - Click-through option: mouse clicks go through the boxes to the game (`/pb lock`). Boxes can't be dragged while it's on; use the typed X / Y.
+- Boxes snap together: drag one box near another and let go. It sticks to that side and moves with it. Drag it away, press **Unsnap all**, or type an X / Y to unstick it. On by default.
 - Profiles: save every setting under a name and load it on another character.
 - Test mode: fake buffs, debuffs and recasts so you can place the boxes without casting.
+
+## Right-click to target (optional, off by default)
+
+- Turn it on in the settings window or with `/pb targetclick`.
+- **Debuff box:** right-click a mob's name to target that exact mob. On an AoE row like `Sleepga (4)`, left-click to open it, then right-click a mob.
+- **Buff box:** right-click a row with one person on it, or a name in an open list.
+- It sends the game's own `/target` command once per right-click. Nothing else, and never on its own.
+
+> **For reviewers:** all of this is in `clicktarget.lua`. It is the only file that sends anything to the game. Without that file the option, checkbox and command don't show, and the addon has no code that sends a command. A release without the file is offered as the "alternative" zip.
 
 ## How buff times are worked out
 
@@ -54,7 +64,8 @@ Times on other people are always based on your own casts or your saved/estimated
 
 ## What it does NOT do
 
-- Does **not** send packets, use commands, cast, or take any action for you. No automation of any kind.
+- Does **not** send packets, cast, or take any action on its own. No automation of any kind.
+- The only command it can send is the game's own `/target`, and only when you right-click a name with **Right-click to target** turned on (off by default, see above).
 - Does **not** change any game memory. It only reads.
 - Does **not** track alliance members or strangers — party only, and only if you turn it on.
 - Does **not** track Trusts.
@@ -75,6 +86,8 @@ Times on other people are always based on your own casts or your saved/estimated
 | Entity list | Mob names, your / your party's pets, mob gone or defeated (Debuff box) |
 | Your current target | Listing your target first in the Debuff box |
 | Open game menu name (memory pattern in `FFXiMain.dll`, same one HXUI uses) | Hiding the boxes while the full chat log is open (optional) |
+| Party list (server IDs) | Targeting a party member by right-click (only if that option is on) |
+| Mouse position and clicks over its own boxes | Folding rows, dragging and snapping boxes, right-click to target |
 | Ashita resource manager | Spell / ability / item names |
 
 ## Install
@@ -94,6 +107,7 @@ Times on other people are always based on your own casts or your saved/estimated
 | `/pb party` | Party buff tracking on / off |
 | `/pb debuffs` | Debuff box on / off |
 | `/pb lock` | Click-through on / off (mouse goes through the boxes) |
+| `/pb targetclick` | Right-click to target on / off (needs `clicktarget.lua`) |
 | `/pb clear` | Clear all current timers |
 | `/pb hide <buff>` / `/pb show <buff>` | Hide / show a buff |
 | `/pb hide recast <name>` / `/pb show recast <name>` | Hide / show a recast |
@@ -110,6 +124,9 @@ Drag the boxes to move them. Their spots are saved. With click-through on, use t
 
 - `personalbuffs.lua` – the addon.
 - `debuffs.lua` – Debuff box tracking (debuffs on mobs).
+- `clicktarget.lua` – optional right-click to target. The only file that sends a command. Safe to delete.
+- `dock.lua` – boxes snapping to each other.
+- `snap.lua` – snap math used by `dock.lua`.
 - `durations.lua` – base buff times by spell ID (from LandSandBoat).
 - `jobdata.lua` – which job gets each spell / ability at level 75 (from LandSandBoat `spell_list.sql` / `abilities.sql`).
 

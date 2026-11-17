@@ -18,6 +18,7 @@
 --      shown with "~" because it's a guess.
 --
 -- Files: personalbuffs.lua (this), debuffs.lua (Debuff box tracking),
+--        clicktarget.lua (optional: right-click a name to target it),
 --        durations.lua (base times by spell ID),
 --        jobdata.lua (which job gets each spell / ability, level 75 cap;
 --        generated from LandSandBoat spell_list.sql / abilities.sql).
@@ -28,7 +29,7 @@
 ----------------------------------------------------------------------
 addon.name    = 'personalbuffs'
 addon.author  = 'Renavi'
-addon.version = '1.3.1'
+addon.version = '1.4.2'
 addon.desc    = 'Shows time left on buffs you give to yourself and others.'
 addon.link    = 'https://github.com/RenaviOnEden/personalbuffs'
 
@@ -50,6 +51,14 @@ local defaults = T{
     recastLabels = true,    -- "Abilities" / "Spells" labels in the recast box
     hideFullLog  = true,    -- hide the boxes while the full chat log is open
     clickThrough = false,   -- mouse clicks pass through the boxes (can't drag them then)
+    snapBoxes    = true,    -- boxes snap together when dragged near each other (dock.lua)
+    -- What each box is stuck to: to = other box, side, off(set), e = lined up with far edge.
+    snap         = T{
+        buff   = T{ to = '', side = '', off = 0, e = false },
+        recast = T{ to = '', side = '', off = 0, e = false },
+        debuff = T{ to = '', side = '', off = 0, e = false },
+    },
+    targetClick  = false,   -- right-click a name in the Buff or Debuff box to target it (needs clicktarget.lua)
     style        = T{},     -- your own style tweaks on top of the theme (see THEMES)
     opacity      = 0,       -- background opacity in % (10-100); 0 = use the theme's own
     durations    = T{},     -- [buff|gear] = real full time read from your own buff
@@ -152,7 +161,7 @@ local currentTheme = nil                          -- theme in use (set by apply_
 --   stripe    colored stripe down the left side   0 (off) - 6 px
 --   dividers  lines between groups (instead of a gap)
 --   spacing   'compact', 'normal', 'roomy'
---   scale     text size in %                      80 - 130
+--   scale     text size in %                      80 - 200
 --   rounding  corner roundness                    0 - 12
 ----------------------------------------------------------------------
 local DEFAULT_STYLE = { bars = false, barH = 3, header = false, border = 'thin', stripe = 0,
@@ -264,72 +273,71 @@ local THEMES = {
       BORDER = { 0.20, 0.80, 0.30, 0.90 }, BTN = { 0.02, 0.15, 0.04, 0.95 },
       BTN_SEL = { 0.05, 0.35, 0.10, 0.95 }, ACCENT = { 0.30, 0.95, 0.40, 1.0 },
       style = { rounding = 0, header = true, dividers = true, spacing = 'compact' } },
-    { name = 'High Contrast', desc = 'Easiest to read: big text, thick border, bars.',
-      NAME = { 1.00, 1.00, 1.00, 1.0 }, GREEN = { 0.30, 1.00, 0.30, 1.0 },
-      YELLOW = { 1.00, 0.90, 0.10, 1.0 }, RED = { 1.00, 0.30, 0.30, 1.0 },
-      TARGET = { 0.40, 0.80, 1.00, 1.0 }, BG = { 0.00, 0.00, 0.00, 0.95 },
-      BORDER = { 1.00, 1.00, 1.00, 1.00 }, BTN = { 0.15, 0.15, 0.15, 1.00 },
-      BTN_SEL = { 0.10, 0.45, 0.10, 1.00 }, ACCENT = { 1.00, 0.90, 0.10, 1.0 },
-      style = { border = 'thick', header = true, bars = true, barH = 5, spacing = 'roomy',
-                scale = 115, rounding = 2 } },
-    { name = "San d'Oria", desc = 'Red and gold, double border, headers.',
-      NAME = { 0.95, 0.90, 0.85, 1.0 }, GREEN = { 0.60, 0.82, 0.55, 1.0 },
-      YELLOW = { 0.95, 0.80, 0.40, 1.0 }, RED = { 0.95, 0.45, 0.40, 1.0 },
-      TARGET = { 0.95, 0.78, 0.50, 1.0 }, BG = { 0.22, 0.04, 0.06, 0.82 },
-      BORDER = { 0.75, 0.60, 0.30, 0.90 }, BTN = { 0.35, 0.08, 0.10, 0.90 },
-      BTN_SEL = { 0.55, 0.15, 0.15, 0.95 }, ACCENT = { 0.90, 0.72, 0.35, 1.0 },
-      style = { border = 'double', header = true, dividers = true, rounding = 3 } },
-    { name = 'Bastok', desc = 'Steel, square, thick border, stripe and bars.',
-      NAME = { 0.90, 0.90, 0.92, 1.0 }, GREEN = { 0.55, 0.80, 0.60, 1.0 },
-      YELLOW = { 0.88, 0.76, 0.42, 1.0 }, RED = { 0.85, 0.45, 0.42, 1.0 },
-      TARGET = { 0.62, 0.78, 0.92, 1.0 }, BG = { 0.10, 0.12, 0.16, 0.85 },
-      BORDER = { 0.55, 0.60, 0.68, 0.90 }, BTN = { 0.20, 0.25, 0.32, 0.90 },
-      BTN_SEL = { 0.30, 0.42, 0.55, 0.95 }, ACCENT = { 0.55, 0.75, 0.95, 1.0 },
-      style = { border = 'thick', stripe = 4, dividers = true, bars = true, barH = 3, rounding = 0 } },
-    { name = 'Windurst', desc = 'Green and earth, very round and roomy.',
-      NAME = { 0.92, 0.92, 0.85, 1.0 }, GREEN = { 0.60, 0.88, 0.50, 1.0 },
-      YELLOW = { 0.92, 0.82, 0.45, 1.0 }, RED = { 0.88, 0.48, 0.42, 1.0 },
-      TARGET = { 0.75, 0.88, 0.60, 1.0 }, BG = { 0.06, 0.14, 0.07, 0.82 },
-      BORDER = { 0.55, 0.65, 0.35, 0.90 }, BTN = { 0.14, 0.26, 0.14, 0.90 },
-      BTN_SEL = { 0.25, 0.42, 0.22, 0.95 }, ACCENT = { 0.70, 0.90, 0.45, 1.0 },
-      style = { header = true, bars = true, barH = 4, spacing = 'roomy', rounding = 12 } },
+    { name = 'High Contrast', desc = 'Easiest to read: black, white and yellow, bigger text.',
+      NAME = { 1.00, 1.00, 1.00, 1.0 }, GREEN = { 0.35, 1.00, 0.35, 1.0 },
+      YELLOW = { 1.00, 0.92, 0.20, 1.0 }, RED = { 1.00, 0.38, 0.38, 1.0 },
+      TARGET = { 0.45, 0.85, 1.00, 1.0 }, BG = { 0.00, 0.00, 0.00, 0.95 },
+      BORDER = { 1.00, 0.92, 0.20, 1.00 }, BTN = { 0.15, 0.15, 0.15, 1.00 },
+      BTN_SEL = { 0.10, 0.45, 0.10, 1.00 }, ACCENT = { 1.00, 0.92, 0.20, 1.0 },
+      style = { bars = true, barH = 5, header = true, scale = 110, rounding = 3 } },
+    { name = "San d'Oria", desc = 'Royal crimson and gold, double border, gold stripe.',
+      NAME = { 0.98, 0.94, 0.86, 1.0 }, GREEN = { 0.62, 0.88, 0.58, 1.0 },
+      YELLOW = { 1.00, 0.86, 0.42, 1.0 }, RED = { 1.00, 0.55, 0.50, 1.0 },
+      TARGET = { 1.00, 0.84, 0.50, 1.0 }, BG = { 0.40, 0.04, 0.09, 0.90 },
+      BORDER = { 0.96, 0.78, 0.36, 1.00 }, BTN = { 0.52, 0.08, 0.14, 0.90 },
+      BTN_SEL = { 0.72, 0.18, 0.20, 0.95 }, ACCENT = { 1.00, 0.80, 0.36, 1.0 },
+      style = { border = 'double', header = true, stripe = 3, rounding = 3 } },
+    { name = 'Bastok', desc = 'Steel blue and copper, square, copper stripe.',
+      NAME = { 0.92, 0.94, 0.97, 1.0 }, GREEN = { 0.58, 0.86, 0.62, 1.0 },
+      YELLOW = { 0.96, 0.82, 0.42, 1.0 }, RED = { 0.96, 0.52, 0.42, 1.0 },
+      TARGET = { 0.66, 0.84, 1.00, 1.0 }, BG = { 0.07, 0.14, 0.26, 0.92 },
+      BORDER = { 0.86, 0.54, 0.26, 0.95 }, BTN = { 0.14, 0.24, 0.40, 0.90 },
+      BTN_SEL = { 0.60, 0.36, 0.16, 0.95 }, ACCENT = { 0.96, 0.62, 0.28, 1.0 },
+      style = { bars = true, barH = 3, header = true, stripe = 4, rounding = 2 } },
+    { name = 'Windurst', desc = 'Deep forest green with star gold, round.',
+      NAME = { 0.96, 0.96, 0.86, 1.0 }, GREEN = { 0.62, 0.94, 0.52, 1.0 },
+      YELLOW = { 1.00, 0.90, 0.46, 1.0 }, RED = { 0.96, 0.52, 0.45, 1.0 },
+      TARGET = { 0.82, 0.95, 0.60, 1.0 }, BG = { 0.05, 0.24, 0.10, 0.90 },
+      BORDER = { 0.96, 0.84, 0.40, 0.90 }, BTN = { 0.10, 0.34, 0.14, 0.90 },
+      BTN_SEL = { 0.32, 0.54, 0.20, 0.95 }, ACCENT = { 1.00, 0.88, 0.42, 1.0 },
+      style = { bars = true, barH = 4, header = true, rounding = 10 } },
 
     -- Expansions (75 era)
-    { name = "Vana'diel", desc = 'Original game: parchment brown and gold, double border.',
-      NAME = { 0.96, 0.92, 0.82, 1.0 }, GREEN = { 0.62, 0.82, 0.50, 1.0 },
-      YELLOW = { 0.96, 0.82, 0.42, 1.0 }, RED = { 0.90, 0.45, 0.38, 1.0 },
-      TARGET = { 0.92, 0.80, 0.58, 1.0 }, BG = { 0.18, 0.12, 0.07, 0.85 },
-      BORDER = { 0.80, 0.66, 0.38, 0.90 }, BTN = { 0.30, 0.20, 0.11, 0.90 },
-      BTN_SEL = { 0.48, 0.34, 0.16, 0.95 }, ACCENT = { 0.92, 0.76, 0.40, 1.0 },
+    { name = "Vana'diel", desc = 'Original game: deep navy and crystal blue, double border.',
+      NAME = { 0.94, 0.97, 1.00, 1.0 }, GREEN = { 0.58, 0.92, 0.72, 1.0 },
+      YELLOW = { 0.98, 0.88, 0.50, 1.0 }, RED = { 0.98, 0.52, 0.54, 1.0 },
+      TARGET = { 0.62, 0.90, 1.00, 1.0 }, BG = { 0.03, 0.08, 0.26, 0.90 },
+      BORDER = { 0.48, 0.86, 1.00, 0.90 }, BTN = { 0.08, 0.18, 0.42, 0.90 },
+      BTN_SEL = { 0.16, 0.40, 0.66, 0.95 }, ACCENT = { 0.50, 0.88, 1.00, 1.0 },
       style = { border = 'double', header = true, rounding = 4 } },
-    { name = 'Zilart', desc = 'Rise of the Zilart: sky blue and pale gold, glassy.',
-      NAME = { 0.94, 0.98, 1.00, 1.0 }, GREEN = { 0.55, 0.92, 0.80, 1.0 },
-      YELLOW = { 0.98, 0.90, 0.60, 1.0 }, RED = { 0.98, 0.55, 0.58, 1.0 },
-      TARGET = { 0.65, 0.90, 1.00, 1.0 }, BG = { 0.05, 0.16, 0.28, 0.70 },
-      BORDER = { 0.85, 0.85, 0.65, 0.60 }, BTN = { 0.08, 0.24, 0.38, 0.80 },
-      BTN_SEL = { 0.15, 0.40, 0.55, 0.90 }, ACCENT = { 0.98, 0.92, 0.65, 1.0 },
+    { name = 'Zilart', desc = 'Rise of the Zilart: bright sky blue and gold, like Tu\'Lia.',
+      NAME = { 0.97, 0.99, 1.00, 1.0 }, GREEN = { 0.60, 0.96, 0.80, 1.0 },
+      YELLOW = { 1.00, 0.90, 0.56, 1.0 }, RED = { 1.00, 0.58, 0.60, 1.0 },
+      TARGET = { 1.00, 0.90, 0.56, 1.0 }, BG = { 0.10, 0.34, 0.56, 0.80 },
+      BORDER = { 1.00, 0.88, 0.50, 0.95 }, BTN = { 0.12, 0.40, 0.62, 0.85 },
+      BTN_SEL = { 0.62, 0.50, 0.20, 0.95 }, ACCENT = { 1.00, 0.88, 0.50, 1.0 },
       style = { header = true, stripe = 3, rounding = 10 } },
-    { name = 'Promathia', desc = 'Chains of Promathia: black and blood red, square, thick border.',
-      NAME = { 0.85, 0.83, 0.85, 1.0 }, GREEN = { 0.50, 0.75, 0.55, 1.0 },
-      YELLOW = { 0.85, 0.72, 0.40, 1.0 }, RED = { 0.90, 0.30, 0.30, 1.0 },
-      TARGET = { 0.72, 0.66, 0.78, 1.0 }, BG = { 0.04, 0.02, 0.04, 0.92 },
-      BORDER = { 0.50, 0.10, 0.12, 0.95 }, BTN = { 0.14, 0.06, 0.08, 0.95 },
-      BTN_SEL = { 0.38, 0.08, 0.10, 0.95 }, ACCENT = { 0.80, 0.18, 0.20, 1.0 },
-      style = { border = 'thick', dividers = true, rounding = 0, spacing = 'compact' } },
-    { name = 'Aht Urhgan', desc = 'Treasures of Aht Urhgan: deep indigo and desert gold.',
-      NAME = { 0.98, 0.94, 0.84, 1.0 }, GREEN = { 0.55, 0.88, 0.70, 1.0 },
-      YELLOW = { 1.00, 0.84, 0.40, 1.0 }, RED = { 0.98, 0.50, 0.40, 1.0 },
-      TARGET = { 0.45, 0.85, 0.85, 1.0 }, BG = { 0.08, 0.07, 0.22, 0.88 },
-      BORDER = { 0.85, 0.68, 0.30, 0.90 }, BTN = { 0.16, 0.13, 0.36, 0.90 },
-      BTN_SEL = { 0.45, 0.34, 0.12, 0.95 }, ACCENT = { 1.00, 0.78, 0.30, 1.0 },
+    { name = 'Promathia', desc = 'Chains of Promathia: the Emptiness, violet black with crimson.',
+      NAME = { 0.90, 0.87, 0.94, 1.0 }, GREEN = { 0.55, 0.82, 0.64, 1.0 },
+      YELLOW = { 0.90, 0.78, 0.46, 1.0 }, RED = { 0.96, 0.38, 0.44, 1.0 },
+      TARGET = { 0.80, 0.70, 0.96, 1.0 }, BG = { 0.10, 0.04, 0.15, 0.94 },
+      BORDER = { 0.62, 0.42, 0.82, 0.90 }, BTN = { 0.20, 0.10, 0.28, 0.95 },
+      BTN_SEL = { 0.50, 0.12, 0.20, 0.95 }, ACCENT = { 0.92, 0.24, 0.32, 1.0 },
+      style = { header = true, stripe = 3, rounding = 0 } },
+    { name = 'Aht Urhgan', desc = 'Treasures of Aht Urhgan: desert bronze and gold, turquoise touch.',
+      NAME = { 1.00, 0.95, 0.84, 1.0 }, GREEN = { 0.60, 0.90, 0.62, 1.0 },
+      YELLOW = { 1.00, 0.86, 0.40, 1.0 }, RED = { 1.00, 0.52, 0.40, 1.0 },
+      TARGET = { 0.40, 0.90, 0.86, 1.0 }, BG = { 0.30, 0.18, 0.06, 0.90 },
+      BORDER = { 0.98, 0.76, 0.30, 0.95 }, BTN = { 0.44, 0.28, 0.10, 0.90 },
+      BTN_SEL = { 0.66, 0.46, 0.14, 0.95 }, ACCENT = { 1.00, 0.80, 0.30, 1.0 },
       style = { header = true, stripe = 4, rounding = 6 } },
-    { name = 'Goddess', desc = 'Wings of the Goddess: faded sepia with soft rose, very round.',
-      NAME = { 0.96, 0.92, 0.88, 1.0 }, GREEN = { 0.66, 0.85, 0.62, 1.0 },
-      YELLOW = { 0.95, 0.84, 0.55, 1.0 }, RED = { 0.95, 0.55, 0.55, 1.0 },
-      TARGET = { 0.95, 0.78, 0.84, 1.0 }, BG = { 0.20, 0.16, 0.13, 0.80 },
-      BORDER = { 0.92, 0.80, 0.82, 0.55 }, BTN = { 0.32, 0.25, 0.22, 0.85 },
-      BTN_SEL = { 0.55, 0.38, 0.42, 0.90 }, ACCENT = { 0.98, 0.76, 0.84, 1.0 },
-      style = { header = true, rounding = 12, spacing = 'roomy' } },
+    { name = 'Goddess', desc = 'Wings of the Goddess: warm sepia with rose, round.',
+      NAME = { 0.98, 0.93, 0.86, 1.0 }, GREEN = { 0.68, 0.88, 0.62, 1.0 },
+      YELLOW = { 0.98, 0.86, 0.55, 1.0 }, RED = { 0.98, 0.55, 0.58, 1.0 },
+      TARGET = { 0.98, 0.78, 0.82, 1.0 }, BG = { 0.30, 0.20, 0.13, 0.88 },
+      BORDER = { 0.94, 0.66, 0.72, 0.85 }, BTN = { 0.44, 0.30, 0.22, 0.90 },
+      BTN_SEL = { 0.62, 0.38, 0.42, 0.95 }, ACCENT = { 0.98, 0.70, 0.78, 1.0 },
+      style = { header = true, rounding = 8 } },
 
     -- FFXIV-style: dark charcoal glass, gold highlights, thin light border.
     { name = 'FFXIV', desc = 'Dark charcoal with gold highlights, like the FFXIV UI.',
@@ -414,7 +422,7 @@ end
 -- PushFont with a size (popped again in box_end).
 local fontPushed = false
 local function box_scale()
-    local sc = clamp(S('scale'), 80, 130, 100) / 100
+    local sc = clamp(S('scale'), 80, 200, 100) / 100
     if has('SetWindowFontScale') then
         pcall(imgui.SetWindowFontScale, sc)
         return
@@ -522,7 +530,8 @@ local function width_pop() if has('PushItemWidth') and has('PopItemWidth') then 
 
 -- Set when a box's position is typed in or nudged in the menu, so the box
 -- jumps there on the next draw (instead of only on first use).
-local moveBox = { buff = false, recast = false, debuff = false }
+local moveBox = { buff = false, recast = false, debuff = false,
+                  typed = {} }   -- typed[box] = X / Y typed in the menu (unsticks it)
 
 local KEEP_AFTER = 5    -- seconds to keep a buff at 0:00
 local SONG_MAX   = 600  -- seconds; no song lasts longer than this (longer reads are the wrong buff)
@@ -972,6 +981,7 @@ local function party_gear_add(caster, name)
 end
 
 local function add_pending(p)
+    require('debuffs').step = 'buffs: gear check'
     if p.caster ~= nil then
         -- Their gear can't be seen; use what you ticked for them.
         p.sig, p.ruleAdd, p.bonus = 'party', party_gear_add(p.caster, p.name), 0
@@ -1043,6 +1053,9 @@ local function handle_action(e)
         return ashita.bits.unpack_be(data, 0, pos, len)
     end
 
+    -- Error tracker (see debuffs.lua): names the step being run.
+    local tr = require('debuffs')
+    tr.step = 'buffs: read packet'
     local myId  = AshitaCore:GetMemoryManager():GetParty():GetMemberServerId(0)
     local actor = u(40, 32)
 
@@ -1050,8 +1063,11 @@ local function handle_action(e)
     local caster = nil      -- nil means you
     if actor ~= myId then
         if not config.party.enabled or not is_player(actor) then return end
+        tr.step = 'buffs: party check'
         if not in_party(actor) then return end   -- party only
+        tr.step = 'buffs: caster name'
         caster = name_of(actor)
+        tr.step = 'buffs: read packet'
     end
     local rollKey = caster or '__me'
     -- Where this caster's rows live (made only when needed).
@@ -1062,6 +1078,7 @@ local function handle_action(e)
     local tcount = u(72, 6)
     local cat    = u(82, 4)
     local param  = u(86, 32)
+    tr.cat, tr.param = cat, param
 
     if cat ~= 4 and cat ~= 6 and cat ~= 14 and cat ~= 15 then return end
 
@@ -1084,6 +1101,7 @@ local function handle_action(e)
     -- Collects the players who got the buff.
     local function gather(msgs)
         local hit, seen, onSelf, effect, value = T{}, {}, false, nil, nil
+        tr.step = 'buffs: target names'
         for _, r in ipairs(results) do
             if msgs[r.msg] and is_player(r.tid) then
                 local who = name_of(r.tid)
@@ -1103,10 +1121,12 @@ local function handle_action(e)
     -- Spells
     ------------------------------------------------------------------
     if cat == 4 then
-        local spell = rm:GetSpellById(param)
+        tr.step = 'buffs: spell lookup'
+        local spell = (param > 0 and param <= 2047) and rm:GetSpellById(param) or nil
         if spell == nil or is_trust(param, spell) then return end
         local hit, onSelf, effect = gather(SPELL_MSGS)
         if #hit == 0 or effect == nil or effect == 0 then return end
+        tr.step = 'buffs: spell timer'
         if caster ~= nil and self_only('spell', param, spell, hit, caster) then return end
 
         local group = spell_group(spell)
@@ -1126,9 +1146,11 @@ local function handle_action(e)
     ------------------------------------------------------------------
     -- Job abilities (and rolls)
     ------------------------------------------------------------------
-    local ability = rm:GetAbilityById(param + 512)
+    tr.step = 'buffs: ability lookup'
+    local ability = (param >= 0 and param <= 4095) and rm:GetAbilityById(param + 512) or nil
     if ability == nil then return end
     local name = ability.Name[1]
+    tr.step = 'buffs: ability results'
 
     -- Bust: the roll is gone for everyone.
     for _, r in ipairs(results) do
@@ -1196,6 +1218,7 @@ local function handle_action(e)
 
     -- Other abilities
     local hit2, onSelf2, effect2 = gather(JA_MSGS)
+    tr.step = 'buffs: ability timer'
     if #hit2 == 0 and is_buff_ability(param) then
         -- Buff ability with a message we don't know: accept it if the
         -- number it carries is a real status effect.
@@ -1225,14 +1248,54 @@ DB.setup({
     dlog = dlog, mmss = mmss, is_player = is_player, is_trust = is_trust, spell_group = spell_group,
 })
 
+-- Boxes snap together (dock.lua + snap.lua). Kept on DB to save a local.
+DB.dock = require('dock')
+DB.dock.setup({
+    cfg  = function () return config end,
+    save = function () settings.save() end,
+    xy   = xy,
+})
+
+----------------------------------------------------------------------
+-- Optional: right-click a name to target it (clicktarget.lua).
+-- That file holds all of the code that sends "/target" to the game.
+-- If the file is not there, DB.tgt stays nil, the option does not show,
+-- and this addon has no code that sends a command.
+----------------------------------------------------------------------
+do
+    local ok, mod = pcall(require, 'clicktarget')
+    if ok and type(mod) == 'table' then
+        DB.tgt = mod
+        mod.setup({
+            cfg     = function () return config end,
+            my_name = function () return myName end,
+            dlog    = dlog,
+        })
+    elseif not ok and not tostring(mod):find('not found', 1, true) then
+        print(chat.header(addon.name):append(chat.message('clicktarget.lua did not load: ' .. tostring(mod))))
+    end
+end
+
 ashita.events.register('packet_in', 'pb_packet', function (e)
+    if e.id ~= 0x028 and e.id ~= 0x029 then return end
+    -- If the last packet hit a game-memory error, say where it stopped.
+    local note = DB.crash_note()
+    if note ~= nil then print(chat.header(addon.name):append(chat.message(note))) end
     if e.id == 0x029 then
-        if config.debuffs then pcall(DB.handle_message, e) end
+        if config.debuffs then
+            DB.step = 'debuffs: wear-off message'
+            pcall(DB.handle_message, e)
+        end
+        DB.step = nil
         return
     end
-    if e.id ~= 0x028 then return end
+    DB.step = 'buffs: start'
     pcall(handle_action, e)
-    if config.debuffs then pcall(DB.handle_action, e) end
+    if config.debuffs then
+        DB.step = 'debuffs: start'
+        pcall(DB.handle_action, e)
+    end
+    DB.step = nil
 end)
 
 ----------------------------------------------------------------------
@@ -1590,7 +1653,7 @@ local function read_recasts()
             else
                 name = ability_name(id)
             end
-            out.Abilities:append({ name = name, left = math.ceil(timer / 60) })
+            out.Abilities:append({ name = name, left = math.ceil(timer / 60), t = timer })
         end
     end
 
@@ -1599,7 +1662,7 @@ local function read_recasts()
         if timer > 0 and not is_trust(id, nil) then
             local spell = rm:GetSpellById(id)
             local name  = (spell ~= nil and spell.Name[1] ~= '') and spell.Name[1] or ('Spell ' .. id)
-            out.Spells:append({ name = name, left = math.ceil(timer / 60) })
+            out.Spells:append({ name = name, left = math.ceil(timer / 60), t = timer })
         end
     end
     return out
@@ -1675,9 +1738,9 @@ local function draw_recasts(now)
     end
     if count == 0 then return end
 
-    imgui.SetNextWindowPos({ config.rx, config.ry },
-        moveBox.recast and ImGuiCond_Always or ImGuiCond_FirstUseEver)
+    DB.dock.place('recast', moveBox.recast, moveBox.typed.recast)
     moveBox.recast = false
+    moveBox.typed.recast = false
     push_style(true)
     -- Name column fits the longest name (nothing is shortened here).
     local rwidth = NAME_WIDTH
@@ -1694,8 +1757,11 @@ local function draw_recasts(now)
         for _, g in ipairs(RECAST_GROUPS) do
             local list = show[g]
             if #list > 0 then
+                -- Sorted by the exact timer (not the rounded seconds), so two
+                -- recasts that are close together never swap places.
                 table.sort(list, function (a, b)
-                    if a.left ~= b.left then return a.left < b.left end
+                    local ta, tb = a.t or a.left * 60, b.t or b.left * 60
+                    if ta ~= tb then return ta < tb end
                     return a.name < b.name
                 end)
                 if not first then group_gap() end
@@ -1720,12 +1786,8 @@ local function draw_recasts(now)
 
         box_end()
 
-        -- Remember where the box was dragged to.
-        local x, y = imgui.GetWindowPos()
-        if (x ~= config.rx or y ~= config.ry) and not imgui.IsMouseDown(0) then
-            config.rx, config.ry = x, y
-            settings.save()
-        end
+        -- Remember where the box is, and snap it after a drag (dock.lua).
+        DB.dock.after('recast')
     end
     imgui.End()
     pop_style()
@@ -1783,7 +1845,7 @@ local function draw_debuffs(now, partyOn)
                         aoe[d.shown] = a
                         aoeList:append(a)
                     end
-                    a.entries:append({ who = mob_title(mob), exp = d.exp, dur = d.dur })
+                    a.entries:append({ who = mob_title(mob), id = id, exp = d.exp, dur = d.dur })
                 else
                     rows:append(d)
                     if #d.shown > width then width = #d.shown end
@@ -1793,7 +1855,7 @@ local function draw_debuffs(now, partyOn)
         if #rows > 0 then
             table.sort(rows, function (a, b)
                 if a.exp ~= b.exp then return a.exp < b.exp end
-                return a.label < b.label
+                return (a.shown or a.label) < (b.shown or b.label)
             end)
             local isTarget = mob.test or (mob.index ~= nil and mob.index == tgtIdx)
             list:append({ id = id, name = mob.name, index = mob.index, title = mob_title(mob),
@@ -1802,7 +1864,10 @@ local function draw_debuffs(now, partyOn)
     end
     -- AoE rows: "Horde Lullaby (4)", lowest timer first.
     for _, a in ipairs(aoeList) do
-        table.sort(a.entries, function (x, y) return x.exp < y.exp end)
+        table.sort(a.entries, function (x, y)
+            if x.exp ~= y.exp then return x.exp < y.exp end
+            return x.who < y.who
+        end)
         a.exp, a.dur = a.entries[1].exp, a.entries[1].dur
         a.label = a.shown .. ' (' .. #a.entries .. ')'
         if #a.label > width then width = #a.label end
@@ -1821,9 +1886,9 @@ local function draw_debuffs(now, partyOn)
         return (a.index or 0) < (b.index or 0)
     end)
 
-    imgui.SetNextWindowPos({ config.dx, config.dy },
-        moveBox.debuff and ImGuiCond_Always or ImGuiCond_FirstUseEver)
+    DB.dock.place('debuff', moveBox.debuff, moveBox.typed.debuff)
     moveBox.debuff = false
+    moveBox.typed.debuff = false
     push_style(true)
 
     -- One timer line: "name : 0:00" plus its bar.
@@ -1873,7 +1938,13 @@ local function draw_debuffs(now, partyOn)
             end
             if DB.open[a.shown] then
                 for _, e in ipairs(a.entries) do
+                    local _, eTop = imgui.GetCursorScreenPos()
                     timer_line('   ' .. e.who, e.exp, e.dur, COL_TARGET)
+                    local _, eBottom = imgui.GetCursorScreenPos()
+                    -- Right-click a mob in the list to target it (optional).
+                    if DB.tgt ~= nil and DB.tgt.right_clicked(eTop, eBottom) then
+                        DB.tgt.mob(e.id, e.who)
+                    end
                 end
             end
         end
@@ -1889,6 +1960,10 @@ local function draw_debuffs(now, partyOn)
             if row_clicked('mob|' .. tostring(m.id), rowTop, rowBottom) then
                 DB.shut[m.id] = not shut or nil
             end
+            -- Right-click the name to target that exact mob (optional).
+            if DB.tgt ~= nil and DB.tgt.right_clicked(rowTop, rowBottom) then
+                DB.tgt.mob(m.id, m.title)
+            end
             if not shut then
                 for _, d in ipairs(m.rows) do
                     timer_line(d.shown or d.label, d.exp, d.dur, COL_NAME)
@@ -1903,12 +1978,8 @@ local function draw_debuffs(now, partyOn)
 
         box_end()
 
-        -- Remember where the box was dragged to.
-        local x, y = imgui.GetWindowPos()
-        if (x ~= config.dx or y ~= config.dy) and not imgui.IsMouseDown(0) then
-            config.dx, config.dy = x, y
-            settings.save()
-        end
+        -- Remember where the box is, and snap it after a drag (dock.lua).
+        DB.dock.after('debuff')
     end
     imgui.End()
     pop_style()
@@ -1942,7 +2013,10 @@ local function prune_rows(store, now, openTbl, keyPrefix)
             list:append(t)
         end
     end
-    table.sort(list, function (a, b) return a.expires < b.expires end)
+    table.sort(list, function (a, b)
+        if a.expires ~= b.expires then return a.expires < b.expires end
+        return a.name < b.name
+    end)
     return list
 end
 
@@ -2792,7 +2866,7 @@ local function draw_theme_tab()
         choice('Spacing', 'spacing', { { 'compact', 'Compact' }, { 'normal', 'Normal' },
                                        { 'roomy', 'Roomy' } })
         slider('Side stripe', 'stripe', 0, 6, 0, '%d px')
-        if can_scale() then slider('Text size', 'scale', 80, 130, 100, '%d%%') end
+        if can_scale() then slider('Text size', 'scale', 80, 200, 100, '%d%%') end
         slider('Corner roundness', 'rounding', 0, 12, 6)
 
         -- Background opacity. 0 means "use the theme's own".
@@ -2835,6 +2909,7 @@ local function draw_theme_tab()
                 if changed then
                     config[k] = math.max(0, v[1])
                     moveBox[box] = true
+                    moveBox.typed[box] = true
                     settings.save()
                 end
             end
@@ -2842,6 +2917,23 @@ local function draw_theme_tab()
         pos_row('Buff box  ', 'pbuff', 'x', 'y', 'buff')
         pos_row('Recast box', 'prec', 'rx', 'ry', 'recast')
         pos_row('Debuff box', 'pdeb', 'dx', 'dy', 'debuff')
+
+        -- Snapping the boxes together.
+        local sv = { config.snapBoxes ~= false }
+        if imgui.Checkbox('Boxes snap together when dragged near each other##snapboxes', sv) then
+            config.snapBoxes = sv[1]
+            settings.save()
+        end
+        imgui.TextColored(COL_NAME, 'A stuck box moves with the box it\'s stuck to. Drag it away to unstick.')
+        local any = false
+        for _, k in ipairs(DB.dock.KEYS) do
+            local st = DB.dock.status(k)
+            if st ~= nil then
+                any = true
+                imgui.TextColored(COL_NAME, '  ' .. DB.dock.NAMES[k]:gsub('^the ', '') .. ': ' .. st)
+            end
+        end
+        if any and imgui.SmallButton('Unsnap all##unsnapall') then DB.dock.unsnap_all() end
         imgui.TextColored(COL_NAME, 'A box only shows when it has something in it. Test mode helps.')
     end
     imgui.Dummy({ 0, 4 })
@@ -2850,6 +2942,14 @@ local function draw_theme_tab()
         config.debuffs = dv[1]
         if not dv[1] then DB.mobs = T{} end
         settings.save()
+    end
+    -- Only shown when clicktarget.lua is installed.
+    if DB.tgt ~= nil then
+        local tv = { config.targetClick == true }
+        if imgui.Checkbox('Right-click a name in the Buff or Debuff box to target it##tgtclick', tv) then
+            config.targetClick = tv[1]
+            settings.save()
+        end
     end
     local cv = { config.clickThrough == true }
     if imgui.Checkbox('Click-through (mouse goes to the game; move boxes with X / Y above)##clickthru', cv) then
@@ -3139,9 +3239,9 @@ ashita.events.register('d3d_present', 'pb_present', function ()
     if #shown == 0 then return end
     local width = column_width(shown)
 
-    imgui.SetNextWindowPos({ config.x, config.y },
-        moveBox.buff and ImGuiCond_Always or ImGuiCond_FirstUseEver)
+    DB.dock.place('buff', moveBox.buff, moveBox.typed.buff)
     moveBox.buff = false
+    moveBox.typed.buff = false
     push_style(true)
 
     if imgui.Begin('personalbuffs', true, config.clickThrough
@@ -3151,7 +3251,11 @@ ashita.events.register('d3d_present', 'pb_present', function ()
         for _, g in ipairs(GROUPS) do
             local list = byGroup[g]
             if list ~= nil then
-                table.sort(list, function (a, b) return a.expires < b.expires end)
+                -- Same end time: keep a fixed order (by name) so rows don't swap.
+                table.sort(list, function (a, b)
+                    if a.expires ~= b.expires then return a.expires < b.expires end
+                    return a.key < b.key
+                end)
 
                 -- Small gap (or a line) between groups.
                 if not first then group_gap() end
@@ -3182,6 +3286,11 @@ ashita.events.register('d3d_present', 'pb_present', function ()
                         press = { name = key, x = wx, y = wy }
                     end
 
+                    -- Right-click a row with one person on it to target them (optional).
+                    if DB.tgt ~= nil and #t.entries == 1 and DB.tgt.right_clicked(rowTop, rowBottom) then
+                        DB.tgt.person(t.entries[1].who)
+                    end
+
                     -- Toggle the name list on click (but not when dragging the box).
                     if press ~= nil and press.name == key and imgui.IsMouseReleased(0) then
                         local wx, wy = imgui.GetWindowPos()
@@ -3193,13 +3302,24 @@ ashita.events.register('d3d_present', 'pb_present', function ()
                     -- Dropdown: each person and their own timer, lowest first.
                     -- Someone else's cast shows as "Name (Caster)".
                     if openTbl[key] then
-                        table.sort(t.entries, function (a, b) return a.exp < b.exp end)
+                        table.sort(t.entries, function (a, b)
+                            if a.exp ~= b.exp then return a.exp < b.exp end
+                            local wa, wb = tostring(a.who), tostring(b.who)
+                            if wa ~= wb then return wa < wb end
+                            return tostring(a.caster) < tostring(b.caster)
+                        end)
                         for _, e in ipairs(t.entries) do
                             local pl = e.exp - now
                             if pl < 0 then pl = 0 end
+                            local _, eTop = imgui.GetCursorScreenPos()
                             imgui.TextColored(COL_TARGET, string.format('   %-' .. (width - 1) .. 's', entry_label(e, width)))
                             imgui.SameLine(0, 6)
                             imgui.TextColored(time_color(pl), fmt_time(pl, e.est))
+                            local _, eBottom = imgui.GetCursorScreenPos()
+                            -- Right-click a person in the list to target them (optional).
+                            if DB.tgt ~= nil and DB.tgt.right_clicked(eTop, eBottom) then
+                                DB.tgt.person(e.who)
+                            end
                         end
                     end
                 end
@@ -3209,12 +3329,8 @@ ashita.events.register('d3d_present', 'pb_present', function ()
 
         box_end()
 
-        -- Remember where the box was dragged to.
-        local x, y = imgui.GetWindowPos()
-        if (x ~= config.x or y ~= config.y) and not imgui.IsMouseDown(0) then
-            config.x, config.y = x, y
-            settings.save()
-        end
+        -- Remember where the box is, and snap it after a drag (dock.lua).
+        DB.dock.after('buff')
     end
     imgui.End()
     pop_style()
@@ -3285,6 +3401,18 @@ ashita.events.register('command', 'pb_command', function (e)
             msg(#list == 0 and 'No profiles yet. /pb profile save <name>'
                 or ('Profiles: ' .. table.concat(list, ', ')))
         end
+        return
+    end
+
+    -- /pb targetclick turns right-click targeting on / off (needs clicktarget.lua).
+    if cmd == 'targetclick' then
+        if DB.tgt == nil then
+            msg('Right-click to target is not installed (no clicktarget.lua in the addon folder).')
+            return
+        end
+        config.targetClick = not config.targetClick
+        settings.save()
+        msg('Right-click to target: ' .. (config.targetClick and 'on' or 'off'))
         return
     end
 
@@ -3441,7 +3569,7 @@ ashita.events.register('command', 'pb_command', function (e)
         return
     end
 
-    msg('Commands: /pb (settings window), /pb test (on/off), /pb party (on/off), /pb debuffs (on/off), /pb lock (click-through on/off), /pb clear, /pb hide <buff>, /pb show <buff>, /pb hide recast <name>, /pb show recast <name>, /pb hide debuff <name>, /pb show debuff <name>, /pb list, /pb preset save|load|delete|list [name], /pb theme [name], /pb profile save|load|delete|list [name], /pb debug')
+    msg('Commands: /pb (settings window), /pb test (on/off), /pb party (on/off), /pb debuffs (on/off), /pb lock (click-through on/off), /pb targetclick (on/off), /pb clear, /pb hide <buff>, /pb show <buff>, /pb hide recast <name>, /pb show recast <name>, /pb hide debuff <name>, /pb show debuff <name>, /pb list, /pb preset save|load|delete|list [name], /pb theme [name], /pb profile save|load|delete|list [name], /pb debug')
 end)
 
 ashita.events.register('unload', 'pb_unload', function ()

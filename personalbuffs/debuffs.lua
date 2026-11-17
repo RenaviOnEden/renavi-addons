@@ -239,7 +239,25 @@ local DB_PROCS = { [2] = 25, [149] = 60, [12] = 30, [6] = 60, [10] = 5, [3] = 30
 M.mobs = T{}
 M.zone = nil
 
+-- Error tracker. M.step names what the packet code is doing right now.
+-- A game-memory error skips the rest of the code, so the step stays set
+-- and the next packet reports it in chat (at most 3 times per step).
+M.step, M.cat, M.param = nil, nil, nil
+M.hits = {}
+
+function M.crash_note()
+    local s, cat, param = M.step, M.cat, M.param
+    M.step, M.cat, M.param = nil, nil, nil
+    if s == nil then return nil end
+    M.hits[s] = (M.hits[s] or 0) + 1
+    if M.hits[s] > 3 then return nil end
+    return string.format('Error tracker: stopped at "%s" (type %s, id %s).',
+        s, tostring(cat), tostring(param))
+end
+
 local function effect_name(id)
+    if id == nil or id <= 0 or id > 1023 then return 'Effect ' .. tostring(id) end
+    M.step = 'debuffs: effect name'
     local ok, n = pcall(function () return AshitaCore:GetResourceManager():GetString('buffs.names', id) end)
     if ok and n ~= nil and n ~= '' then return n end
     return 'Effect ' .. tostring(id)
@@ -247,9 +265,10 @@ end
 
 -- Name and entity index of a mob. A mob's index is the low 12 bits of its ID.
 local function mob_info(serverId)
+    M.step = 'debuffs: mob name'
     local ent = AshitaCore:GetMemoryManager():GetEntity()
     local idx = bit.band(serverId, 0xFFF)
-    if ent:GetServerId(idx) == serverId then
+    if idx <= 2303 and ent:GetServerId(idx) == serverId then
         local n = ent:GetName(idx)
         if n ~= nil and n ~= '' then return n, idx end
     end
@@ -268,14 +287,15 @@ local function debuff_actor(actor)
     local ent   = mm:GetEntity()
     local pets  = {}
     local ok, caster = false, nil
+    M.step = 'debuffs: party and pets'
     for i = 0, 5 do
         if party:GetMemberIsActive(i) == 1 then
             local sid = party:GetMemberServerId(i)
             local pet = nil
             local idx = party:GetMemberTargetIndex(i)
-            if idx ~= nil and idx > 0 then
+            if idx ~= nil and idx > 0 and idx <= 2303 then
                 local pi = ent:GetPetTargetIndex(idx)
-                if pi ~= nil and pi > 0 then
+                if pi ~= nil and pi > 0 and pi <= 2303 then
                     pet = ent:GetServerId(pi)
                     if pet ~= nil and pet ~= 0 then pets[pet] = true end
                 end
@@ -307,11 +327,14 @@ function M.handle_action(e)
         return ashita.bits.unpack_be(data, 0, pos, len)
     end
 
+    M.step = 'debuffs: read packet'
     local actor  = u(40, 32)
     local tcount = u(72, 6)
     local cat    = u(82, 4)
+    M.cat = cat
     if cat == 7 or cat == 8 or cat == 9 or cat == 12 then return end   -- "starts casting" etc.
     local param  = u(86, 32)
+    M.param = param
 
     -- Read every target / result, with the additional effect (procs).
     local results = T{}
@@ -349,8 +372,9 @@ function M.handle_action(e)
     local spellName = nil
     -- What put the debuff on (for hiding): name and menu group.
     local srcKey, srcGroup = DEBUFF_OTHER, 'Other'
+    M.step = 'debuffs: spell / ability lookup'
     if cat == 4 then
-        local sp = rm:GetSpellById(param)
+        local sp = (param > 0 and param <= 2047) and rm:GetSpellById(param) or nil
         if sp == nil or is_trust(param, sp) then return end
         spellName = sp.Name[1]
         srcKey, srcGroup = spellName, spell_group(sp)
@@ -359,7 +383,7 @@ function M.handle_action(e)
     elseif cat == 3 and DB_BASH[param] then
         srcKey, srcGroup = DB_BASH[param], 'Abilities'
     elseif cat == 6 then
-        local ab = rm:GetAbilityById(param + 512)
+        local ab = (param >= 0 and param <= 4095) and rm:GetAbilityById(param + 512) or nil
         if DB_JA[param] then
             srcKey, srcGroup = DB_JA[param].n, 'Abilities'
         elseif ab ~= nil and ab.Name[1] ~= nil and ab.Name[1] ~= '' then
@@ -393,6 +417,7 @@ function M.handle_action(e)
                 M.mobs[r.tid] = mob
             end
             label = label or effect_name(fx)
+            M.step = 'debuffs: results'
             local rec = { label = label, exp = now + secs, dur = secs, caster = caster,
                           key = key or srcKey, group = group or srcGroup }
             mob.fx[fx] = rec
@@ -464,6 +489,7 @@ function M.handle_action(e)
         end
     end
 
+    M.step = 'debuffs: results'
     for _, r in ipairs(results) do one(r) end
 
     -- AoE: the same debuff landing on 2 or more mobs in one action is

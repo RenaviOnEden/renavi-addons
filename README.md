@@ -7,8 +7,8 @@ Two Ashita v4 addons for HorizonXI by Renavi. They share the same themes, and ea
 
 | Addon | Version | Command | Folder |
 |---|---|---|---|
-| **PersonalBuffs** | 1.3.1 | `/pb` | [`personalbuffs/`](personalbuffs) |
-| **PersonalHud** | 1.0 | `/phud` | [`personalhud/`](personalhud) |
+| **PersonalBuffs** | 1.4.2 | `/pb` | [`personalbuffs/`](personalbuffs) |
+| **PersonalHud** | 1.1.6 | `/phud` | [`personalhud/`](personalhud) |
 
 ### PersonalBuffs
 
@@ -18,11 +18,13 @@ Timers for what you do, in small themed boxes:
 - **Debuff box:** debuffs you put on mobs, one section per mob, your target first. Clears when they wear off or the mob dies.
 - **Recast box:** your ability and spell recasts.
 - **Party (optional, off by default):** your party members' buffs and debuffs too, marked with their name.
+- **Right-click to target (optional, off by default):** right-click a name in the Buff or Debuff box to target it.
+- Boxes snap together when dragged near each other.
 - Hide anything per job, save what you hide as presets, themes, click-through, profiles for other characters.
 
 ### PersonalHud
 
-One small box with your name, jobs, HP, MP, TP and XP / LP. Uses the same themes and can match PersonalBuffs' theme.
+One small box with your name, jobs, HP, MP, TP and XP / LP, or each piece in its own box (split HUD). Optional target bar with HP, distance and debuff letters. Uses the same themes and can match PersonalBuffs' theme.
 
 ## Install
 
